@@ -1,0 +1,47 @@
+{% extends "layouts/app.html" %}
+{% from "macros/ui.html" import page_head, badge, empty %}
+{% from "macros/icons.html" import icon %}
+
+{% block title %}Notifications · {{ school.name }}{% endblock %}
+
+{% block content %}
+{% call page_head("Notifications", "Updates about attendance, results, fees, homework and school notices.") %}
+  {% if notifications %}
+    <form class="inline-form" method="post" action="{{ url_for('auth.mark_notifications_read') }}">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <input type="hidden" name="next" value="{{ url_for('auth.notifications') }}">
+      <button class="btn btn--ghost" type="submit">{{ icon("check", 16) }} Mark all as read</button>
+    </form>
+  {% endif %}
+{% endcall %}
+
+<section class="card card--flush">
+  {% if notifications %}
+    <div class="table-wrap">
+      <table class="table table--stack">
+        <thead><tr><th>Notification</th><th>Type</th><th>Received</th></tr></thead>
+        <tbody>
+          {% for item in notifications %}
+            <tr>
+              <td data-label="Notification">
+                <div class="cluster" style="gap:.4rem">
+                  {% if item.is_unread %}<span class="badge badge--accent">New</span>{% endif %}
+                  <span class="row-title">{{ item.title }}</span>
+                </div>
+                {% if item.body %}<div class="small muted mt-1">{{ item.body }}</div>{% endif %}
+                {% if item.link_url %}
+                  <a class="small" href="{{ item.link_url }}">Open</a>
+                {% endif %}
+              </td>
+              <td data-label="Type">{{ badge(item.kind.value|replace("_", " ")|title, item.tone) }}</td>
+              <td data-label="Received" class="small">{{ item.created_at|ago }}</td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  {% else %}
+    {{ empty("You're all caught up", "Notifications about your account and your children will appear here.", "bell") }}
+  {% endif %}
+</section>
+{% endblock %}

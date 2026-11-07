@@ -1,0 +1,49 @@
+{% extends "layouts/app.html" %}
+{% from "macros/ui.html" import field, page_head %}
+{% from "macros/icons.html" import icon %}
+
+{% block title %}{{ "Edit staff" if staff else "Add staff" }} · {{ school.name }}{% endblock %}
+
+{% block content %}
+<div class="breadcrumb">
+  <a href="{{ url_for('admin_staff.index') }}">Staff</a>
+  <span>{{ "Edit" if staff else "New" }}</span>
+</div>
+{{ page_head(("Edit " ~ staff.full_name) if staff else "Add a staff member",
+   "A staff login is created at the same time. The temporary password must be changed at first sign-in.") }}
+
+<form method="post" novalidate>
+  {{ form.hidden_tag() }}
+  <section class="card card--pad mb-2">
+    <h2 class="mb-2">Person</h2>
+    <div class="form-grid">
+      {{ field(form.full_name) }}
+      {{ field(form.employee_code, hint="Unique within the school, e.g. EMP007.") }}
+      {{ field(form.designation) }}
+      {{ field(form.staff_type) }}
+      {{ field(form.qualification) }}
+      {{ field(form.specialisation) }}
+      {{ field(form.joining_date) }}
+      {{ field(form.employment_status) }}
+      {{ field(form.dob) }}
+      {{ field(form.gender) }}
+      {{ field(form.phone) }}
+      {{ field(form.email) }}
+      {{ field(form.address, cls="span-2") }}
+    </div>
+  </section>
+
+  <section class="card card--pad mb-2">
+    <h2 class="mb-2">Portal login</h2>
+    <div class="form-grid">
+      {{ field(form.username, hint="Leave unchanged to keep the existing username." if staff else "Lower-case letters, numbers, dot, dash or underscore.") }}
+      {{ field(form.password, hint="Leave blank to keep the current password." if staff else "At least 8 characters.") }}
+    </div>
+  </section>
+
+  <div class="btn-row">
+    {{ form.submit(class_="btn btn--primary") }}
+    <a class="btn btn--ghost" href="{{ url_for('admin_staff.profile', staff_id=staff.id) if staff else url_for('admin_staff.index') }}">Cancel</a>
+  </div>
+</form>
+{% endblock %}

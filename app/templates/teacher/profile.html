@@ -1,0 +1,108 @@
+{% extends "layouts/app.html" %}
+{% from "macros/ui.html" import page_head, status_badge, badge %}
+{% from "macros/icons.html" import icon %}
+
+{% block title %}My profile · {{ school.name }}{% endblock %}
+
+{% block content %}
+{% call page_head("My profile", "Your staff record and this year's teaching responsibilities.") %}
+  <a class="btn btn--ghost" href="{{ url_for('auth.account_profile') }}">{{ icon("user", 16) }} Account settings</a>
+  <a class="btn btn--ghost" href="{{ url_for('teacher.timetable') }}">{{ icon("calendar", 16) }} My timetable</a>
+{% endcall %}
+
+<div class="grid grid--sidebar">
+  <div class="stack">
+    <section class="card card--pad">
+      <div class="cluster" style="align-items:flex-start">
+        <span class="avatar avatar--xl">{{ staff.full_name|initials }}</span>
+        <div style="flex:1">
+          <h2 class="mb-0">{{ staff.full_name }}</h2>
+          <div class="muted small">{{ staff.designation or "Teacher" }}{% if staff.department %} · {{ staff.department }}{% endif %}</div>
+          <div class="cluster mt-1">
+            <span class="badge badge--info">{{ staff.staff_type.value|title }}</span>
+            {{ status_badge(staff.employment_status) }}
+            <span class="badge badge--neutral">{{ staff.employee_code }}</span>
+          </div>
+        </div>
+      </div>
+      <hr>
+      <dl class="dl">
+        <dt>Employee code</dt><dd class="mono">{{ staff.employee_code }}</dd>
+        <dt>Qualification</dt><dd>{{ staff.qualification or "Not recorded" }}</dd>
+        <dt>Specialisation</dt><dd>{{ staff.specialisation or "Not recorded" }}</dd>
+        <dt>Joined</dt><dd>{{ staff.joining_date|d if staff.joining_date else "Not recorded" }}</dd>
+        <dt>Employment type</dt><dd>{{ staff.employment_type|replace("_", " ")|title }}</dd>
+        <dt>Reports to</dt><dd>{{ staff.reports_to.full_name if staff.reports_to else "Not recorded" }}</dd>
+      </dl>
+    </section>
+
+    <section class="card card--pad">
+      <h2 class="mb-2">Contact</h2>
+      <dl class="dl">
+        <dt>Email</dt><dd>{{ staff.user.email if staff.user and staff.user.email else "Not recorded" }}</dd>
+        <dt>Phone</dt><dd>{{ staff.phone or (staff.user.phone if staff.user else "Not recorded") or "Not recorded" }}</dd>
+        <dt>Address</dt><dd>{{ staff.address or "Not recorded" }}</dd>
+        <dt>Emergency contact</dt><dd>{{ staff.emergency_contact or "Not recorded" }}</dd>
+      </dl>
+      <p class="small muted mt-2 mb-0">To correct these details, contact the school office. Staff records are managed centrally and changes are audited.</p>
+    </section>
+
+    <section class="card card--flush">
+      <div class="card__head">
+        <div><h2>Classes I lead</h2><div class="sub">Sections where you are the class teacher</div></div>
+      </div>
+      {% if classes_led %}
+        <div class="card__body">
+          <ul class="list">
+            {% for section in classes_led %}
+              <li class="list__item">
+                <div class="list__body">
+                  <div class="list__title">{{ section.label }}</div>
+                  <div class="list__meta">{{ section.student_count }} students · {{ section.school_class.name if section.school_class else "" }}</div>
+                </div>
+                <a class="btn btn--quiet btn--sm" href="{{ url_for('teacher.class_detail', section_id=section.id) }}">Open</a>
+              </li>
+            {% endfor %}
+          </ul>
+        </div>
+      {% else %}
+        <div class="card__body"><p class="muted small mb-0">You are not currently a class teacher for any section.</p></div>
+      {% endif %}
+    </section>
+  </div>
+
+  <div class="stack">
+    <section class="card card--flush">
+      <div class="card__head">
+        <div><h2>Teaching load</h2><div class="sub">{{ allocations|length }} subject allocation{{ "" if allocations|length == 1 else "s" }}</div></div>
+      </div>
+      {% if allocations %}
+        <div class="card__body">
+          <ul class="list">
+            {% for allocation in allocations %}
+              <li class="list__item">
+                <div class="list__body">
+                  <div class="list__title">{{ allocation.subject.name if allocation.subject else "Subject" }}</div>
+                  <div class="list__meta">{{ allocation.section.label if allocation.section else "—" }} · {{ allocation.periods_per_week }} periods/week</div>
+                </div>
+              </li>
+            {% endfor %}
+          </ul>
+        </div>
+      {% else %}
+        <div class="card__body"><p class="muted small mb-0">No subject allocations are recorded for this year.</p></div>
+      {% endif %}
+    </section>
+
+    <section class="card card--pad">
+      <h2 class="mb-2">Shortcuts</h2>
+      <div class="stack">
+        <a class="btn btn--ghost btn--block" href="{{ url_for('teacher.classes') }}">{{ icon("users", 16) }} My classes</a>
+        <a class="btn btn--ghost btn--block" href="{{ url_for('teacher.marks') }}">{{ icon("clipboard", 16) }} Marks entry</a>
+        <a class="btn btn--ghost btn--block" href="{{ url_for('teacher.leave') }}">{{ icon("calendar", 16) }} Leave</a>
+        <a class="btn btn--ghost btn--block" href="{{ url_for('auth.change_password') }}">{{ icon("key", 16) }} Change password</a>
+      </div>
+    </section>
+  </div>
+</div>
+{% endblock %}

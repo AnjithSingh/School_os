@@ -1,0 +1,93 @@
+{% extends "layouts/app.html" %}
+{% from "macros/ui.html" import page_head, status_badge, empty %}
+{% from "macros/icons.html" import icon %}
+
+{% block title %}Homework · {{ school.name }}{% endblock %}
+
+{% block content %}
+{{ page_head("Homework", "Assignments published for your section. Submit your work here and check your teacher's feedback.") }}
+
+{% if rows %}
+  <div class="stack">
+    {% for row in rows %}
+      {% set item = row.homework %}
+      {% set submission = row.submission %}
+      {% set locked = submission and submission.status.value in ["REVIEWED", "RETURNED"] %}
+      <section class="card card--flush">
+        <div class="card__head">
+          <div>
+            <h2 class="mb-0">{{ item.title }}</h2>
+            <div class="sub">
+              {{ item.subject.name if item.subject else "—" }}
+              · assigned {{ item.assigned_on|d }}
+              {% if item.due_at %} · due {{ item.due_at|dt }}{% endif %}
+              {% if item.max_marks %} · {{ item.max_marks }} marks{% endif %}
+            </div>
+          </div>
+          <div class="cluster">
+            {{ status_badge(item.status) }}
+            {% if submission %}
+              {{ status_badge(submission.status) }}
+            {% elif item.is_overdue %}
+              {{ status_badge("REOPENED") }}
+            {% else %}
+              {{ status_badge("PENDING") }}
+            {% endif %}
+          </div>
+        </div>
+
+        <div class="card__body">
+          <p class="small" style="white-space:pre-line">{{ item.description or "No instructions were provided." }}</p>
+
+          {% if item.attachment %}
+            <a class="btn btn--quiet btn--sm" href="{{ url_for('files.serve', file_uuid=item.attachment.uuid) }}">{{ icon("download", 14) }} Attachment</a>
+          {% endif %}
+
+          {% if submission and submission.marks is not none %}
+            <div class="notice notice--success mt-2">
+              <strong>Marked {{ submission.marks }}{% if item.max_marks %} / {{ item.max_marks }}{% endif %}.</strong>
+              {% if submission.remarks %}{{ submission.remarks }}{% endif %}
+            </div>
+          {% elif submission and submission.remarks %}
+            <div class="notice mt-2"><strong>Teacher feedback:</strong> {{ submission.remarks }}</div>
+          {% endif %}
+
+          {% if submission and submission.file %}
+            <div class="cluster mt-2">
+              <span class="small muted">Submitted file:</span>
+              <a class="btn btn--quiet btn--sm" href="{{ url_for('files.serve', file_uuid=submission.file.uuid) }}">{{ icon("download", 14) }} Open</a>
+            </div>
+          {% endif %}
+
+          {% if locked %}
+            <p class="small muted mt-2 mb-0">This submission has been reviewed and can no longer be changed.</p>
+          {% else %}
+            <form method="post" action="{{ url_for('student.submit_homework', homework_id=item.id) }}" enctype="multipart/form-data" class="mt-2">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+              <div class="form-grid">
+                <div class="field">
+                  <label for="file-{{ item.id }}">Your file</label>
+                  <input class="input" type="file" id="file-{{ item.id }}" name="file">
+                  <div class="field__hint">Optional if you are submitting a note only.</div>
+                </div>
+                <div class="field">
+                  <label for="note-{{ item.id }}">Note to teacher</label>
+                  <input class="input" id="note-{{ item.id }}" name="note" value="{{ submission.remarks if submission and submission.remarks else '' }}" placeholder="Anything your teacher should know">
+                </div>
+              </div>
+              {% if submission and submission.file %}
+                <label class="check small"><input type="checkbox" name="remove_file" value="1"> Remove the file I submitted earlier</label>
+              {% endif %}
+              <div class="form-actions">
+                <button class="btn btn--primary btn--sm" type="submit">{{ icon("upload", 14) }} {{ "Update submission" if submission else "Submit homework" }}</button>
+              </div>
+            </form>
+          {% endif %}
+        </div>
+      </section>
+    {% endfor %}
+  </div>
+{% else %}
+  {{ empty("No homework", "Assignments for your section will appear here once your teachers publish them.", "file-text") }}
+{% endif %}
+{% endblock %}

@@ -1,0 +1,46 @@
+{% extends "layouts/app.html" %}
+{% from "macros/ui.html" import page_head, status_badge, empty %}
+{% from "macros/icons.html" import icon %}
+
+{% block title %}Announcements · {{ school.name }}{% endblock %}
+
+{% block content %}
+{% call page_head("Announcements", "Notices published to families, your children's classes and the whole school this academic year.") %}
+  <a class="btn btn--ghost" href="{{ url_for('parent.home') }}">{{ icon("arrow-left", 16) }} Family dashboard</a>
+{% endcall %}
+
+<section class="card card--flush">
+  {% if rows %}
+    <div class="card__body">
+      <ul class="list">
+        {% for item in rows %}
+          <li class="list__item">
+            <div class="list__body">
+              <div class="cluster" style="gap:.35rem">
+                {% if item.is_pinned %}<span class="badge badge--accent">Pinned</span>{% endif %}
+                <span class="badge badge--info">{{ item.category.value|replace("_", " ")|title }}</span>
+                <span class="badge">{{ item.audience_scope.value|replace("_", " ")|title }}</span>
+                {{ status_badge(item.status) }}
+              </div>
+              <div class="list__title mt-1">{{ item.title }}</div>
+              <div class="list__meta">
+                {{ item.publish_at|dt if item.publish_at else item.created_at|dt }}
+                {% if item.author %} · {{ item.author.full_name }}{% endif %}
+                {% if item.school_class %} · {{ item.school_class.name }}{% endif %}
+                {% if item.section %} · {{ item.section.label }}{% endif %}
+                {% if item.expires_at %} · until {{ item.expires_at|dt }}{% endif %}
+              </div>
+              <p class="small mt-1 mb-0" style="white-space:pre-line">{{ item.body }}</p>
+              {% if item.attachment %}
+                <a class="btn btn--quiet btn--sm mt-1" href="{{ url_for('files.serve', file_uuid=item.attachment.uuid) }}">{{ icon("download", 14) }} Attachment</a>
+              {% endif %}
+            </div>
+          </li>
+        {% endfor %}
+      </ul>
+    </div>
+  {% else %}
+    {{ empty("No announcements", "Notices for families and classes will appear here once the school office publishes them.", "megaphone") }}
+  {% endif %}
+</section>
+{% endblock %}

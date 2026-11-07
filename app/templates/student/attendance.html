@@ -1,0 +1,58 @@
+{% extends "layouts/app.html" %}
+{% from "macros/ui.html" import page_head, status_badge, progress_bar, empty %}
+{% from "macros/icons.html" import icon %}
+
+{% block title %}My attendance · {{ school.name }}{% endblock %}
+
+{% block content %}
+{% call page_head("My attendance", (current_session.name if current_session else "Current year") ~ " · " ~ (summary.total if summary else 0) ~ " days recorded") %}
+  <a class="btn btn--ghost" href="{{ url_for('student.home') }}">{{ icon("arrow-left", 16) }} Dashboard</a>
+{% endcall %}
+
+<div class="grid grid--4 mb-2">
+  <div class="stat stat--{{ 'success' if summary.percentage and summary.percentage >= 75 else 'warning' if summary.percentage else 'danger' }}">
+    <div class="stat__label">Attendance</div>
+    <div class="stat__value">{{ summary.percentage|percent if summary.percentage is not none else "—" }}</div>
+    <div class="stat__hint">{{ summary.present_units|round(1) }} of {{ summary.total }} days</div>
+  </div>
+  <div class="stat"><div class="stat__label">Present</div><div class="stat__value">{{ summary.counts.get("PRESENT", 0) }}</div><div class="stat__hint">full days</div></div>
+  <div class="stat stat--warning"><div class="stat__label">Late / half day</div><div class="stat__value">{{ summary.counts.get("LATE", 0) + summary.counts.get("HALF_DAY", 0) }}</div><div class="stat__hint">partial attendance</div></div>
+  <div class="stat stat--danger"><div class="stat__label">Absent</div><div class="stat__value">{{ summary.counts.get("ABSENT", 0) }}</div><div class="stat__hint">including unexplained</div></div>
+</div>
+
+<section class="card card--pad mb-2">
+  <div class="between mb-1">
+    <div>
+      <h2 class="mb-0">Attendance rate</h2>
+      <div class="small muted">Late and excused days count as present; half days count as half.</div>
+    </div>
+    <strong class="num">{{ summary.percentage|percent if summary.percentage is not none else "—" }}</strong>
+  </div>
+  {{ progress_bar(summary.percentage or 0, "success" if summary.percentage and summary.percentage >= 75 else "warning" if summary.percentage and summary.percentage >= 50 else "danger") }}
+</section>
+
+<section class="card card--flush">
+  <div class="card__head">
+    <div><h2>Daily register</h2><div class="sub">Most recent {{ rows|length }} records</div></div>
+  </div>
+  {% if rows %}
+    <div class="table-wrap">
+      <table class="table table--stack">
+        <thead><tr><th>Date</th><th>Day</th><th>Status</th><th>Remarks</th></tr></thead>
+        <tbody>
+          {% for record in rows %}
+            <tr>
+              <td data-label="Date" class="small">{{ record.date|d }}</td>
+              <td data-label="Day" class="small">{{ record.date|weekday }}</td>
+              <td data-label="Status">{{ status_badge(record.status) }}</td>
+              <td data-label="Remarks" class="small">{{ record.remarks or "—" }}</td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  {% else %}
+    {{ empty("No attendance recorded", "Your class teacher has not marked attendance yet this year.", "check") }}
+  {% endif %}
+</section>
+{% endblock %}

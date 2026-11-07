@@ -1,0 +1,27 @@
+{% extends "layouts/auth.html" %}
+{% from "macros/ui.html" import field %}
+
+{% block title %}Sign in · {{ school.name if school else 'School OS' }}{% endblock %}
+
+{% block content %}
+<div class="card">
+  <h2>Staff sign in</h2>
+  <p class="sub">Administrators, teachers and office staff.</p>
+  <form method="post" novalidate>
+    {{ form.hidden_tag() }}
+    <div class="stack">
+      {{ field(form.identifier, autocomplete="username", placeholder="e.g. principal") }}
+      {{ field(form.password, autocomplete="current-password") }}
+      <label class="check">{{ form.remember() }} <span>{{ form.remember.label.text }}</span></label>
+      {{ form.submit(class_="btn btn--primary btn--block") }}
+    </div>
+  </form>
+  <div class="auth-links">
+    <span class="muted">Forgotten your password? Ask the school office for a reset link.</span>
+  </div>
+  <p class="auth-switch">
+    Parent? <a href="{{ url_for('auth.parent_login') }}">Use the parent portal</a><br>
+    Student? <a href="{{ url_for('auth.student_login') }}">Use the student portal</a>
+  </p>
+</div>
+{% endblock %}

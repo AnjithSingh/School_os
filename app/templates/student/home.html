@@ -1,0 +1,160 @@
+{% extends "layouts/app.html" %}
+{% from "macros/ui.html" import page_head, status_badge, progress_bar, empty, badge %}
+{% from "macros/icons.html" import icon %}
+
+{% block title %}My dashboard · {{ school.name }}{% endblock %}
+
+{% block content %}
+{% call page_head("Hello, " ~ student.first_name, (data.enrollment.section.label if data.enrollment else "No section for this year") ~ " · " ~ (current_session.name if current_session else "")) %}
+  <a class="btn btn--ghost" href="{{ url_for('student.timetable') }}">{{ icon("calendar", 16) }} My timetable</a>
+  <a class="btn btn--ghost" href="{{ url_for('student.homework') }}">{{ icon("file-text", 16) }} Homework</a>
+{% endcall %}
+
+{% if data.empty %}
+  <div class="notice">No academic session is active yet, so your dashboard will populate once the school opens the year.</div>
+{% else %}
+  <div class="grid grid--4 mb-2">
+    <div class="stat stat--{{ 'success' if data.attendance.percentage and data.attendance.percentage >= 75 else 'warning' if data.attendance.percentage else 'danger' }}">
+      <div class="stat__label">Attendance</div>
+      <div class="stat__value">{{ data.attendance.percentage|percent if data.attendance.percentage is not none else "—" }}</div>
+      <div class="stat__hint">{{ data.attendance.total }} days recorded</div>
+    </div>
+    <div class="stat stat--{{ 'warning' if data.pending_homework else 'success' }}">
+      <div class="stat__label">Homework pending</div>
+      <div class="stat__value">{{ data.pending_homework }}</div>
+      <div class="stat__hint">{{ "all caught up" if not data.pending_homework else "assignments to complete" }}</div>
+    </div>
+    <div class="stat stat--{{ 'danger' if data.ledger and data.ledger.balance else 'success' }}">
+      <div class="stat__label">Fees balance</div>
+      <div class="stat__value">{{ data.ledger.balance|money if data.ledger else "—" }}</div>
+      <div class="stat__hint">{{ data.ledger.overdue|money if data.ledger else "" }} overdue</div>
+    </div>
+    <div class="stat stat--accent">
+      <div class="stat__label">Latest result</div>
+      <div class="stat__value">
+        {% if data.latest_results %}{{ data.latest_results[0].percentage|percent }}{% else %}—{% endif %}
+      </div>
+      <div class="stat__hint">
+        {% if data.latest_results %}{{ data.latest_results[0].examination.name }} · {{ data.latest_results[0].grade or "" }}{% else %}no published result yet{% endif %}
+      </div>
+    </div>
+  </div>
+
+  <div class="grid grid--sidebar">
+    <div class="stack">
+      <section class="card card--flush">
+        <div class="card__head">
+          <div><h2>Today at school</h2><div class="sub">{{ today|d("long") }}</div></div>
+          <a class="btn btn--quiet btn--sm" href="{{ url_for('student.timetable') }}">Full timetable</a>
+        </div>
+        {% if data.schedule %}
+          <div class="card__body">
+            <ul class="list">
+              {% for item in data.schedule if item.entry %}
+                <li class="list__item">
+                  <div class="list__body">
+                    <div class="list__title">{{ item.entry.subject.name if item.entry.subject else "Period" }}</div>
+                    <div class="list__meta">
+                      {{ item.period.label }} · {{ item.period.start_time|t }}–{{ item.period.end_time|t }}
+                      {% if item.entry.teacher %} · {{ item.entry.teacher.full_name }}{% endif %}
+                      {% if item.entry.room %} · {{ item.entry.room }}{% endif %}
+                    </div>
+                  </div>
+                  {% if item.change %}<span class="badge badge--warning">{{ item.change.change_type.value|replace("_", " ")|title }}</span>{% endif %}
+                </li>
+              {% endfor %}
+            </ul>
+          </div>
+        {% else %}
+          <div class="card__body"><p class="muted small mb-0">{{ "No classes scheduled today." if data.schedule is not none else "No timetable is published yet." }}</p></div>
+        {% endif %}
+      </section>
+
+      <section class="card card--flush">
+        <div class="card__head">
+          <div><h2>Latest results</h2><div class="sub">Published examinations</div></div>
+          <a class="btn btn--quiet btn--sm" href="{{ url_for('student.results') }}">All results</a>
+        </div>
+        {% if data.latest_results %}
+          <div class="table-wrap">
+            <table class="table table--compact table--stack">
+              <thead><tr><th>Examination</th><th class="num">Percentage</th><th>Grade</th><th>Result</th></tr></thead>
+              <tbody>
+                {% for summary in data.latest_results %}
+                  <tr>
+                    <td data-label="Examination">
+                      <span class="row-title">{{ summary.examination.name }}</span>
+                      <span class="sub">{{ summary.examination.exam_type.name if summary.examination.exam_type else "" }}</span>
+                    </td>
+                    <td data-label="Percentage" class="num">{{ summary.percentage|percent }}</td>
+                    <td data-label="Grade"><strong>{{ summary.grade or "—" }}</strong></td>
+                    <td data-label="Result">{{ status_badge(summary.result_status) }}</td>
+                  </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        {% else %}
+          <div class="card__body"><p class="muted small mb-0">No results have been published for you yet.</p></div>
+        {% endif %}
+      </section>
+    </div>
+
+    <div class="stack">
+      <section class="card card--pad">
+        <h2 class="mb-2">Attendance</h2>
+        <div class="between mb-1">
+          <span class="muted small">Present days</span>
+          <strong class="num">{{ data.attendance.percentage|percent if data.attendance.percentage is not none else "—" }}</strong>
+        </div>
+        {{ progress_bar(data.attendance.percentage or 0, "success" if data.attendance.percentage and data.attendance.percentage >= 75 else "warning") }}
+        <a class="btn btn--ghost btn--block mt-2" href="{{ url_for('student.attendance') }}">View register</a>
+      </section>
+
+      <section class="card card--flush">
+        <div class="card__head"><div><h2>Upcoming exams</h2><div class="sub">Next scheduled</div></div></div>
+        {% if data.upcoming_exams %}
+          <div class="card__body">
+            <ul class="list">
+              {% for exam in data.upcoming_exams %}
+                <li class="list__item">
+                  <div class="list__body">
+                    <div class="list__title">{{ exam.name }}</div>
+                    <div class="list__meta">{{ exam.start_date|d if exam.start_date else "Date not set" }} · {{ exam.exam_type.name if exam.exam_type else "Examination" }}</div>
+                  </div>
+                  {{ status_badge(exam.status) }}
+                </li>
+              {% endfor %}
+            </ul>
+          </div>
+        {% else %}
+          <div class="card__body"><p class="muted small mb-0">No upcoming examinations are scheduled.</p></div>
+        {% endif %}
+      </section>
+
+      <section class="card card--flush">
+        <div class="card__head">
+          <div><h2>Notices</h2><div class="sub">Latest announcements</div></div>
+          <a class="btn btn--quiet btn--sm" href="{{ url_for('student.announcements') }}">All</a>
+        </div>
+        {% if data.announcements %}
+          <div class="card__body">
+            <ul class="list">
+              {% for item in data.announcements %}
+                <li class="list__item">
+                  <div class="list__body">
+                    <div class="list__title">{{ item.title }}</div>
+                    <div class="list__meta">{{ item.publish_at|dt if item.publish_at else item.created_at|dt }}</div>
+                  </div>
+                </li>
+              {% endfor %}
+            </ul>
+          </div>
+        {% else %}
+          <div class="card__body"><p class="muted small mb-0">No announcements have been published yet.</p></div>
+        {% endif %}
+      </section>
+    </div>
+  </div>
+{% endif %}
+{% endblock %}

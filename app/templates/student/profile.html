@@ -1,0 +1,108 @@
+{% extends "layouts/app.html" %}
+{% from "macros/ui.html" import page_head, status_badge, badge %}
+{% from "macros/icons.html" import icon %}
+
+{% block title %}My profile · {{ school.name }}{% endblock %}
+
+{% block content %}
+{% call page_head("My profile", "Your student record for " ~ (current_session.name if current_session else "the current year") ~ ".") %}
+  <a class="btn btn--ghost" href="{{ url_for('auth.account_profile') }}">{{ icon("user", 16) }} Account settings</a>
+  <a class="btn btn--ghost" href="{{ url_for('student.timetable') }}">{{ icon("calendar", 16) }} My timetable</a>
+{% endcall %}
+
+<div class="grid grid--sidebar">
+  <div class="stack">
+    <section class="card card--pad">
+      <div class="cluster" style="align-items:flex-start">
+        <span class="avatar avatar--xl">{{ student.full_name|initials }}</span>
+        <div style="flex:1">
+          <h2 class="mb-0">{{ student.full_name }}</h2>
+          <div class="muted small">
+            {{ student.admission_no }}
+            {% if enrollment %} · {{ enrollment.section.label }}{% endif %}
+          </div>
+          <div class="cluster mt-1">
+            {{ status_badge(student.status) }}
+            {% if enrollment %}<span class="badge badge--info">{{ enrollment.section.school_class.name if enrollment.section.school_class else "" }}</span>{% endif %}
+            {% if student.category %}<span class="badge badge--neutral">{{ student.category }}</span>{% endif %}
+          </div>
+        </div>
+      </div>
+      <hr>
+      <dl class="dl">
+        <dt>Admission number</dt><dd class="mono">{{ student.admission_no }}</dd>
+        <dt>Date of birth</dt><dd>{{ student.dob|d if student.dob else "Not recorded" }}{% if student.age %} ({{ student.age }} years){% endif %}</dd>
+        <dt>Gender</dt><dd>{{ student.gender.value|title if student.gender else "Not recorded" }}</dd>
+        <dt>Blood group</dt><dd>{{ student.blood_group or "Not recorded" }}</dd>
+        <dt>Admitted on</dt><dd>{{ student.admission_date|d if student.admission_date else "Not recorded" }}</dd>
+        <dt>Address</dt><dd>{{ student.address or "Not recorded" }}{% if student.city %}, {{ student.city }}{% endif %}{% if student.state %}, {{ student.state }}{% endif %}{% if student.pincode %} – {{ student.pincode }}{% endif %}</dd>
+        <dt>Phone</dt><dd>{{ student.phone or "Not recorded" }}</dd>
+        <dt>Email</dt><dd>{{ student.email or (student.user.email if student.user else "Not recorded") or "Not recorded" }}</dd>
+        <dt>Emergency contact</dt><dd>{{ student.emergency_name or "Not recorded" }}{% if student.emergency_phone %} · {{ student.emergency_phone }}{% endif %}</dd>
+      </dl>
+      <p class="small muted mt-2 mb-0">To correct these details, ask your guardian to contact the school office. Student records are managed centrally and changes are audited.</p>
+    </section>
+
+    <section class="card card--flush">
+      <div class="card__head">
+        <div><h2>This year at school</h2><div class="sub">Section, roll number and class teacher</div></div>
+      </div>
+      {% if enrollment %}
+        <div class="card__body">
+          <dl class="dl">
+            <dt>Class</dt><dd>{{ enrollment.section.school_class.name if enrollment.section.school_class else "—" }}</dd>
+            <dt>Section</dt><dd>{{ enrollment.section.label }}</dd>
+            <dt>Roll number</dt><dd>{{ enrollment.roll_no or "Not assigned" }}</dd>
+            <dt>Class teacher</dt><dd>{{ enrollment.section.class_teacher.full_name if enrollment.section.class_teacher else "Not assigned" }}</dd>
+            <dt>Room</dt><dd>{{ enrollment.section.room or "Not assigned" }}</dd>
+            <dt>Enrolment status</dt><dd>{{ status_badge(enrollment.status) }}</dd>
+          </dl>
+        </div>
+      {% else %}
+        <div class="card__body"><p class="muted small mb-0">You are not enrolled in a section for this academic year. Contact the school office.</p></div>
+      {% endif %}
+    </section>
+  </div>
+
+  <div class="stack">
+    <section class="card card--flush">
+      <div class="card__head">
+        <div><h2>My guardians</h2><div class="sub">Contacts recorded by the school</div></div>
+      </div>
+      {% if student.guardian_links %}
+        <div class="card__body">
+          <ul class="list">
+            {% for link in student.guardian_links %}
+              {% if link.status.value == "VERIFIED" %}
+                <li class="list__item">
+                  <div class="list__body">
+                    <div class="list__title">
+                      {{ link.guardian.full_name if link.guardian else "Guardian" }}
+                      {% if link.is_primary %}{{ badge("Primary", "accent") }}{% endif %}
+                    </div>
+                    <div class="list__meta">{{ link.relationship or "Guardian" }}{% if link.guardian and link.guardian.phone %} · {{ link.guardian.phone }}{% endif %}</div>
+                  </div>
+                  {{ status_badge(link.status) }}
+                </li>
+              {% endif %}
+            {% endfor %}
+          </ul>
+        </div>
+      {% else %}
+        <div class="card__body"><p class="muted small mb-0">No guardian contact is recorded for you yet.</p></div>
+      {% endif %}
+    </section>
+
+    <section class="card card--pad">
+      <h2 class="mb-2">Shortcuts</h2>
+      <div class="stack">
+        <a class="btn btn--ghost btn--block" href="{{ url_for('student.home') }}">{{ icon("grid", 16) }} Dashboard</a>
+        <a class="btn btn--ghost btn--block" href="{{ url_for('student.attendance') }}">{{ icon("check", 16) }} My attendance</a>
+        <a class="btn btn--ghost btn--block" href="{{ url_for('student.homework') }}">{{ icon("file-text", 16) }} Homework</a>
+        <a class="btn btn--ghost btn--block" href="{{ url_for('student.materials') }}">{{ icon("book", 16) }} Study material</a>
+        <a class="btn btn--ghost btn--block" href="{{ url_for('auth.change_password') }}">{{ icon("key", 16) }} Change password</a>
+      </div>
+    </section>
+  </div>
+</div>
+{% endblock %}

@@ -1,0 +1,47 @@
+{% extends "layouts/base.html" %}
+{% from "macros/icons.html" import icon %}
+
+{% block body %}
+<div class="auth-shell">
+  <aside class="auth-aside">
+    <div>
+      <div class="auth-aside__brand">
+        <span class="brand-mark" aria-hidden="true">{{ (school.short_name or school.name or 'S')[0]|upper if school else 'S' }}</span>
+        <span>{{ school.name if school else 'School OS' }}</span>
+      </div>
+      {% block aside %}
+        <h1>One calm place for the whole school day.</h1>
+        <p>Admissions, attendance, marks, fees and family communication — joined up, and written down exactly once.</p>
+        <ul class="auth-aside__points">
+          <li>Separate staff, parent and student sign-in</li>
+          <li>Results and report cards that never change silently</li>
+          <li>Fee receipts and audit trails you can defend</li>
+        </ul>
+      {% endblock %}
+    </div>
+    <div class="auth-aside__foot">
+      {{ school.address_line1 if school and school.address_line1 else 'School OS' }}
+      {% if school and school.city %} · {{ school.city }}{% endif %}
+    </div>
+  </aside>
+
+  <main class="auth-main" id="main-content">
+    <div class="auth-card">
+      {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+          <div class="flash-stack">
+            {% for category, message in messages %}
+              {% set tone = {'success': 'success', 'error': 'error', 'danger': 'error', 'warning': 'warning', 'info': 'info'}.get(category, 'info') %}
+              <div class="flash flash--{{ tone }}">
+                <div class="flash__body">{{ message }}</div>
+                <button type="button" class="flash__close" data-dismiss-flash aria-label="Dismiss message">×</button>
+              </div>
+            {% endfor %}
+          </div>
+        {% endif %}
+      {% endwith %}
+      {% block content %}{% endblock %}
+    </div>
+  </main>
+</div>
+{% endblock %}

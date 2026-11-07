@@ -1,0 +1,145 @@
+{% extends "layouts/app.html" %}
+{% from "macros/ui.html" import page_head, stat, status_badge, empty, badge %}
+{% from "macros/icons.html" import icon %}
+
+{% block title %}Teacher workspace · {{ school.name }}{% endblock %}
+
+{% block content %}
+{% call page_head("Good day, " ~ (staff.full_name.split(" ")[0] if staff.full_name else "teacher"),
+   today|d("long") ~ " · " ~ (session.name if session else "No academic year active") ~ " · " ~ (staff.designation or "Teaching staff")) %}
+  <a class="btn btn--primary" href="{{ url_for('teacher.attendance') }}">{{ icon("check", 16) }} Mark attendance</a>
+  <a class="btn btn--ghost" href="{{ url_for('teacher.homework') }}">{{ icon("file-text", 16) }} New homework</a>
+  <a class="btn btn--ghost" href="{{ url_for('teacher.marks') }}">Marks entry</a>
+{% endcall %}
+
+<div class="grid grid--4 mb-2">
+  {{ stat("My sections", my_sections|length, "classes you teach this year", "primary", "users") }}
+  {{ stat("Attendance not marked", unmarked|length, "sections still open today", "danger" if unmarked else "success", "check") }}
+  {{ stat("Marks sheets pending", pending_sheets, "draft or reopened", "warning" if pending_sheets else "success", "clipboard") }}
+  {{ stat("Homework to review", homework_due, "submissions awaiting feedback", "accent" if homework_due else "success", "file-text") }}
+</div>
+
+<div class="grid grid--sidebar mb-2">
+  <section class="card card--flush">
+    <div class="card__head">
+      <div><h2>Today's schedule</h2><div class="sub">{{ today|d("long") }}{% if timetable %} · {{ timetable.name }}{% endif %}</div></div>
+      <a class="btn btn--quiet btn--sm" href="{{ url_for('teacher.timetable') }}">Full week</a>
+    </div>
+    {% if today_schedule %}
+      <div class="table-wrap">
+        <table class="table table--stack">
+          <thead><tr><th>Period</th><th>Time</th><th>Class</th><th>Subject</th><th>Room</th><th>Status</th></tr></thead>
+          <tbody>
+            {% for item in today_schedule %}
+              <tr>
+                <td data-label="Period"><strong>{{ item.period.label }}</strong></td>
+                <td data-label="Time" class="small nowrap">{{ item.period.start_time|t }}–{{ item.period.end_time|t }}</td>
+                <td data-label="Class">
+                  <a href="{{ url_for('teacher.class_detail', section_id=item.section.id) }}">{{ item.section.label }}</a>
+                </td>
+                <td data-label="Subject">{{ item.entry.subject.name if item.entry.subject else "—" }}</td>
+                <td data-label="Room" class="small">{{ (item.change.new_room if item.change and item.change.new_room else item.entry.room) or "—" }}</td>
+                <td data-label="Status">
+                  {% if item.change %}
+                    <span class="badge badge--warning">{{ item.change.change_type.value|replace("_", " ")|title }}</span>
+                  {% else %}
+                    <span class="badge badge--neutral">Scheduled</span>
+                  {% endif %}
+                </td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    {% elif not timetable %}
+      {{ empty("No published timetable", "The school office has not published a timetable for this year yet.", "calendar", url_for('teacher.timetable'), "Open timetable") }}
+    {% else %}
+      {{ empty("No classes today", "You have no periods scheduled for " ~ today|d("long") ~ ".", "calendar") }}
+    {% endif %}
+  </section>
+
+  <div class="stack">
+    <section class="card card--pad">
+      <div class="card__head" style="padding:0 0 .75rem">
+        <h2>Attendance still to mark</h2>
+        {% if unmarked %}<span class="badge badge--danger">{{ unmarked|length }}</span>{% endif %}
+      </div>
+      {% if unmarked %}
+        <div class="stack">
+          {% for section in unmarked %}
+            <div class="between">
+              <div>
+                <div class="row-title">{{ section.label }}</div>
+                <div class="small muted">{{ section.student_count }} students</div>
+              </div>
+              <a class="btn btn--ghost btn--sm" href="{{ url_for('teacher.attendance', section_id=section.id, date=today.isoformat()) }}">Mark</a>
+            </div>
+          {% endfor %}
+        </div>
+      {% else %}
+        <p class="small muted mb-0">Every section you teach has attendance recorded for today.</p>
+      {% endif %}
+    </section>
+
+    <section class="card card--pad">
+      <h2 class="mb-2">Quick links</h2>
+      <div class="stack">
+        <a class="btn btn--ghost btn--block" href="{{ url_for('teacher.classes') }}">{{ icon("users", 16) }} My classes</a>
+        <a class="btn btn--ghost btn--block" href="{{ url_for('teacher.materials') }}">{{ icon("book", 16) }} Study material</a>
+        <a class="btn btn--ghost btn--block" href="{{ url_for('teacher.leave') }}">{{ icon("calendar", 16) }} Apply for leave</a>
+        <a class="btn btn--ghost btn--block" href="{{ url_for('teacher.profile') }}">{{ icon("id-card", 16) }} My profile</a>
+      </div>
+    </section>
+  </div>
+</div>
+
+<div class="grid grid--2">
+  <section class="card card--flush">
+    <div class="card__head">
+      <div><h2>My sections</h2><div class="sub">Subjects and class responsibilities</div></div>
+      <a class="btn btn--quiet btn--sm" href="{{ url_for('teacher.classes') }}">Manage</a>
+    </div>
+    {% if my_sections %}
+      <div class="card__body">
+        <ul class="list">
+          {% for section in my_sections %}
+            <li class="list__item">
+              <div class="list__body">
+                <div class="list__title">{{ section.label }}</div>
+                <div class="list__meta">{{ section.student_count }} students{% if section.class_teacher_id == staff.id %} · class teacher{% endif %}</div>
+              </div>
+              <a class="btn btn--quiet btn--sm" href="{{ url_for('teacher.class_detail', section_id=section.id) }}">Open</a>
+            </li>
+          {% endfor %}
+        </ul>
+      </div>
+    {% else %}
+      {{ empty("No sections assigned", "Ask the school office to allocate subjects to you for this academic year.", "users") }}
+    {% endif %}
+  </section>
+
+  <section class="card card--flush">
+    <div class="card__head">
+      <div><h2>School notices</h2><div class="sub">Latest published announcements</div></div>
+      <a class="btn btn--quiet btn--sm" href="{{ url_for('teacher.announcements') }}">All</a>
+    </div>
+    {% if announcements %}
+      <div class="card__body">
+        <ul class="list">
+          {% for item in announcements %}
+            <li class="list__item">
+              <div class="list__body">
+                <div class="list__title">{{ item.title }}</div>
+                <div class="list__meta">{{ item.publish_at|dt if item.publish_at else item.created_at|dt }} · {{ item.category.value|replace("_", " ")|title }}</div>
+                <p class="small mt-1 mb-0">{{ item.body|truncate(160) }}</p>
+              </div>
+            </li>
+          {% endfor %}
+        </ul>
+      </div>
+    {% else %}
+      {{ empty("No notices", "School-wide announcements will appear here.", "megaphone") }}
+    {% endif %}
+  </section>
+</div>
+{% endblock %}

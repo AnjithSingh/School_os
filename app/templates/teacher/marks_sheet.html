@@ -1,0 +1,137 @@
+{% extends "layouts/app.html" %}
+{% from "macros/ui.html" import page_head, status_badge, empty %}
+{% from "macros/icons.html" import icon %}
+
+{% block title %}Marks · {{ sheet.exam_subject.subject.name if sheet.exam_subject and sheet.exam_subject.subject else "Sheet" }} · {{ school.name }}{% endblock %}
+
+{% block content %}
+<div class="breadcrumb">
+  <a href="{{ url_for('teacher.marks') }}">Marks entry</a>
+  <span>{{ sheet.exam_subject.examination.name if sheet.exam_subject and sheet.exam_subject.examination else "Marks sheet" }}</span>
+</div>
+
+{% call page_head(
+  (sheet.exam_subject.subject.name if sheet.exam_subject and sheet.exam_subject.subject else "Marks sheet") ~ " · " ~ (sheet.section.label if sheet.section else ""),
+  (sheet.exam_subject.examination.name if sheet.exam_subject and sheet.exam_subject.examination else "") ~
+  " · maximum " ~ (sheet.exam_subject.max_marks if sheet.exam_subject else "—") ~
+  " · passing " ~ (sheet.exam_subject.pass_marks if sheet.exam_subject else "—")
+) %}
+  {{ status_badge(sheet.status) }}
+  <a class="btn btn--ghost" href="{{ url_for('teacher.marks') }}">{{ icon("arrow-left", 16) }} All sheets</a>
+{% endcall %}
+
+{% if sheet.status.value == "APPROVED" %}
+  <div class="notice mb-2">
+    <strong>Approved and locked.</strong> This sheet has been approved by the principal. If a correction is needed, ask the office to reopen it.
+  </div>
+{% elif sheet.status.value == "SUBMITTED" %}
+  <div class="notice mb-2">
+    <strong>Submitted for approval.</strong> You can keep editing until the principal approves the sheet.
+  </div>
+{% elif sheet.status.value == "REOPENED" %}
+  <div class="notice mb-2">
+    <strong>Reopened for correction.</strong> {{ sheet.remarks or "Please review the marks and resubmit." }}
+  </div>
+{% endif %}
+
+{% if sheet.status.value == "APPROVED" %}
+  <section class="card card--flush">
+    <div class="card__head">
+      <div><h2>Marks</h2><div class="sub">{{ rows|length }} students</div></div>
+    </div>
+    <div class="table-wrap">
+      <table class="table table--stack marks-table">
+        <thead><tr><th class="num">Roll</th><th>Student</th><th class="num">Marks</th><th>Status</th><th>Remarks</th></tr></thead>
+        <tbody>
+          {% for row in rows %}
+            {% set record = row.record %}
+            <tr class="{{ 'is-absent' if record and record.status.value == 'ABSENT' }}">
+              <td data-label="Roll" class="num">{{ row.enrollment.roll_no or "—" }}</td>
+              <td data-label="Student">
+                <span class="row-title">{{ row.enrollment.student.full_name if row.enrollment.student else "—" }}</span>
+                <span class="sub">{{ row.enrollment.student.admission_no if row.enrollment.student else "" }}</span>
+              </td>
+              <td data-label="Marks" class="num">
+                {% if record and record.marks_obtained is not none %}
+                  <strong>{{ record.marks_obtained }}</strong> / {{ sheet.exam_subject.max_marks }}
+                {% else %}<span class="muted">—</span>{% endif %}
+              </td>
+              <td data-label="Status">{{ status_badge(record.status) if record else status_badge("ABSENT") }}</td>
+              <td data-label="Remarks" class="small">{{ record.remarks if record and record.remarks else "—" }}</td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </section>
+{% else %}
+  <form method="post" action="{{ url_for('teacher.marks_sheet', sheet_id=sheet.id) }}">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+    <section class="card card--flush">
+      <div class="card__head">
+        <div>
+          <h2>Enter marks</h2>
+          <div class="sub">{{ rows|length }} students · marks must be between 0 and {{ sheet.exam_subject.max_marks if sheet.exam_subject else 100 }}</div>
+        </div>
+        <div class="cluster">
+          <button class="btn btn--ghost btn--sm" type="button" data-mark-all="PRESENT">All present</button>
+          <button class="btn btn--ghost btn--sm" type="button" data-mark-all="ABSENT">All absent</button>
+        </div>
+      </div>
+      <div class="table-wrap">
+        <table class="table table--stack marks-table">
+          <thead><tr><th style="width:70px">Roll</th><th>Student</th><th class="num" style="width:110px">Marks</th><th style="width:150px">Status</th><th>Remarks</th></tr></thead>
+          <tbody>
+            {% for row in rows %}
+              {% set record = row.record %}
+              <tr class="{{ 'is-absent' if record and record.status.value == 'ABSENT' }}">
+                <td data-label="Roll" class="num">{{ row.enrollment.roll_no or "—" }}</td>
+                <td data-label="Student">
+                  <span class="row-title">{{ row.enrollment.student.full_name if row.enrollment.student else "—" }}</span>
+                  <span class="sub">{{ row.enrollment.student.admission_no if row.enrollment.student else "" }}</span>
+                </td>
+                <td data-label="Marks" class="num">
+                  <input class="input" type="number" inputmode="numeric" min="0"
+                         max="{{ sheet.exam_subject.max_marks if sheet.exam_subject else 100 }}"
+                         name="marks_{{ row.enrollment.student_id }}"
+                         aria-label="Marks for {{ row.enrollment.student.full_name if row.enrollment.student else 'student' }}"
+                         value="{{ record.marks_obtained if record and record.marks_obtained is not none else '' }}">
+                </td>
+                <td data-label="Status">
+                  <select class="select" name="status_{{ row.enrollment.student_id }}" data-mark-status aria-label="Marks status">
+                    {% for status in ["PRESENT", "ABSENT", "EXEMPT"] %}
+                      <option value="{{ status }}" {{ 'selected' if (record and record.status.value == status) }}>{{ status|title }}</option>
+                    {% endfor %}
+                  </select>
+                </td>
+                <td data-label="Remarks">
+                  <input class="input input--wide" name="remarks_{{ row.enrollment.student_id }}"
+                         value="{{ record.remarks if record and record.remarks else '' }}" placeholder="Optional note">
+                </td>
+              </tr>
+            {% else %}
+              <tr><td colspan="5" class="muted">No active students are enrolled in this section.</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      <div class="card__foot">
+        <div class="stack" style="gap:.85rem">
+          <div class="field" style="margin:0">
+            <label for="reason">Reason for correction (optional)</label>
+            <input class="input" id="reason" name="reason" placeholder="Recorded against changed marks in the audit trail">
+          </div>
+          <div class="between">
+            <span class="small muted">Saving a draft does not submit the sheet. Submitted sheets can still be edited until approved.</span>
+            <div class="cluster">
+              <button class="btn btn--ghost" type="submit" name="action" value="save">Save draft</button>
+              <button class="btn btn--primary" type="submit" name="action" value="submit">{{ icon("check", 16) }} Submit for approval</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+  </form>
+{% endif %}
+{% endblock %}

@@ -1,0 +1,36 @@
+{% from "macros/icons.html" import icon %}
+<aside class="sidebar" id="sidebar" aria-label="Main navigation">
+  <a class="sidebar__brand" href="{{ url_for(current_user.dashboard_endpoint) }}">
+    <span class="brand-mark" aria-hidden="true">{{ (school.short_name or school.name or 'S')[0]|upper }}</span>
+    <span>
+      <strong>{{ school.short_name or school.name or 'School OS' }}</strong>
+      <span>{{ school.city or 'School OS' }}</span>
+    </span>
+  </a>
+
+  <div class="sidebar__scroll">
+    {% for group in nav %}
+      <div class="sidebar__section">
+        <div class="sidebar__section-label">{{ group.section }}</div>
+        {% for item in group['items'] %}
+          {% set ep = request.endpoint or '' %}
+          {% set clean = ep|replace('.child_', '.') %}
+          {% set active = ep == item.endpoint
+             or clean == item.endpoint
+             or (ep.startswith(item.endpoint ~ '.'))
+             or (item.endpoint.endswith('.index') and ep.startswith(item.endpoint[:-6])) %}
+          <a class="sidebar__link {{ 'is-active' if active }}" href="{{ url_for(item.endpoint, **item.url_kwargs) }}"
+             {% if active %}aria-current="page"{% endif %}>
+            {{ icon(item.icon, 18) }}
+            <span>{{ item.label }}</span>
+          </a>
+        {% endfor %}
+      </div>
+    {% endfor %}
+  </div>
+
+  <div class="sidebar__foot">
+    <div>{{ current_user.role.label }}</div>
+    <div class="tiny">{{ current_session.name if current_session else 'No academic year' }} · v{{ app_version }}</div>
+  </div>
+</aside>

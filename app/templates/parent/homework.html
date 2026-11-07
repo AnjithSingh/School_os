@@ -1,0 +1,85 @@
+{% extends "layouts/app.html" %}
+{% from "macros/ui.html" import page_head, status_badge, empty %}
+{% from "macros/icons.html" import icon %}
+
+{% block title %}Homework · {{ student.full_name if student else "Child" }} · {{ school.name }}{% endblock %}
+
+{% block content %}
+{% call page_head("Homework", (student.full_name if student else "Child") ~ " · " ~ (current_session.name if current_session else "Current year")) %}
+  <a class="btn btn--ghost" href="{{ url_for('parent.children') }}">{{ icon("users", 16) }} Switch child</a>
+  <a class="btn btn--ghost" href="{{ url_for('parent.home') }}">{{ icon("arrow-left", 16) }} Family dashboard</a>
+{% endcall %}
+
+<div class="grid grid--sidebar">
+  <section class="card card--flush">
+    <div class="card__head">
+      <div><h2>Assignments</h2><div class="sub">{{ rows|length }} published this year</div></div>
+    </div>
+    {% if rows %}
+      <div class="table-wrap">
+        <table class="table table--stack">
+          <thead><tr><th>Assignment</th><th>Subject</th><th>Due</th><th>Submission</th><th class="num">Marks</th><th class="num"></th></tr></thead>
+          <tbody>
+            {% for row in rows %}
+              {% set item = row.homework %}
+              {% set submission = row.submission %}
+              <tr>
+                <td data-label="Assignment">
+                  <span class="row-title">{{ item.title }}</span>
+                  <span class="sub">Assigned {{ item.assigned_on|d }}{% if item.is_overdue and not submission %} · overdue{% endif %}</span>
+                </td>
+                <td data-label="Subject" class="small">{{ item.subject.name if item.subject else "—" }}</td>
+                <td data-label="Due" class="small">{{ item.due_at|dt if item.due_at else "—" }}</td>
+                <td data-label="Submission">{{ status_badge(submission.status) if submission else status_badge("PENDING") }}</td>
+                <td data-label="Marks" class="num">
+                  {% if submission and submission.marks is not none %}
+                    <strong>{{ submission.marks }}</strong>{% if item.max_marks %} / {{ item.max_marks }}{% endif %}
+                  {% else %}<span class="muted">—</span>{% endif %}
+                </td>
+                <td data-label="" class="num">
+                  {% if item.attachment %}
+                    <a class="btn btn--quiet btn--sm" href="{{ url_for('files.serve', file_uuid=item.attachment.uuid) }}">Sheet</a>
+                  {% endif %}
+                </td>
+              </tr>
+              {% if submission and submission.remarks %}
+                <tr>
+                  <td colspan="6" class="small muted"><strong>Teacher feedback:</strong> {{ submission.remarks }}</td>
+                </tr>
+              {% endif %}
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    {% else %}
+      {{ empty("No homework yet", "Assignments from the class teacher will appear here.", "file-text") }}
+    {% endif %}
+  </section>
+
+  <section class="card card--flush">
+    <div class="card__head">
+      <div><h2>Study material</h2><div class="sub">Shared with this class</div></div>
+    </div>
+    {% if materials %}
+      <div class="card__body">
+        <ul class="list">
+          {% for item in materials %}
+            <li class="list__item">
+              <div class="list__body">
+                <div class="list__title">{{ item.title }}</div>
+                <div class="list__meta">{{ item.subject.name if item.subject else "—" }} · {{ item.created_at|d }}</div>
+                {% if item.description %}<p class="small mt-1 mb-0">{{ item.description|truncate(120) }}</p>{% endif %}
+              </div>
+              {% if item.file %}
+                <a class="btn btn--quiet btn--sm" href="{{ url_for('files.serve', file_uuid=item.file.uuid) }}">{{ icon("download", 14) }} Open</a>
+              {% endif %}
+            </li>
+          {% endfor %}
+        </ul>
+      </div>
+    {% else %}
+      <div class="card__body"><p class="muted small mb-0">No study material has been shared with this class yet.</p></div>
+    {% endif %}
+  </section>
+</div>
+{% endblock %}

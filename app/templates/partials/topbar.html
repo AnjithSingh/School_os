@@ -1,0 +1,34 @@
+{% from "macros/icons.html" import icon %}
+<header class="topbar">
+  <button type="button" class="icon-btn sidebar-toggle" data-nav-toggle aria-controls="sidebar"
+          aria-expanded="false" aria-label="Open navigation">
+    {{ icon("menu", 20) }}
+  </button>
+
+  {% if request.endpoint not in ['admin.dashboard', 'teacher.dashboard', 'parent.home', 'student.home'] %}
+    <button type="button" class="icon-btn" data-back
+            data-back-fallback="{{ url_for(current_user.dashboard_endpoint) }}"
+            aria-label="Go back" title="Go back">
+      {{ icon("arrow-left", 19) }}
+    </button>
+  {% endif %}
+
+  <div class="topbar__title">{{ school.name if school else 'School OS' }}</div>
+  <div class="topbar__meta">{{ today|d('long') }}{% if current_session %} · {{ current_session.name }}{% endif %}</div>
+
+  <div class="topbar__spacer"></div>
+
+  <a class="icon-btn" href="{{ url_for('auth.notifications') }}" aria-label="Notifications{% if unread_notifications %}, {{ unread_notifications }} unread{% endif %}">
+    {{ icon("bell", 19) }}
+    {% if unread_notifications %}<span class="dot">{{ unread_notifications if unread_notifications < 100 else '99+' }}</span>{% endif %}
+  </a>
+
+  <a class="icon-btn" href="{{ url_for('auth.account_profile') }}" aria-label="Account">
+    <span class="avatar" style="width:28px;height:28px;flex-basis:28px;font-size:.68rem">{{ current_user.full_name|initials }}</span>
+  </a>
+
+  <a class="icon-btn" href="{{ url_for('auth.logout') }}" aria-label="Sign out" title="Sign out"
+     data-confirm="Sign out of your account?">
+    {{ icon("logout", 19) }}
+  </a>
+</header>

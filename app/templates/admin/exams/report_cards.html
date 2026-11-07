@@ -1,0 +1,63 @@
+{% extends "layouts/app.html" %}
+{% from "macros/ui.html" import page_head, status_badge, empty %}
+{% from "macros/icons.html" import icon %}
+
+{% block title %}Report cards · {{ exam.name }} · {{ school.name }}{% endblock %}
+
+{% block content %}
+<div class="breadcrumb">
+  <a href="{{ url_for('admin_exams.index') }}">Examinations</a>
+  <a href="{{ url_for('admin_exams.detail', exam_id=exam.id) }}">{{ exam.name }}</a>
+  <span>Report cards</span>
+</div>
+
+{% call page_head("Report cards · " ~ exam.name, "Each card is an immutable snapshot with its own PDF and revision number. Regenerating creates a new revision; earlier versions are kept.") %}
+  <form class="inline-form" method="post" action="{{ url_for('admin_exams.report_cards', exam_id=exam.id) }}" data-confirm="Generate a report card for every computed result?">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <button class="btn btn--primary" type="submit">{{ icon("file-text", 16) }} Generate all cards</button>
+  </form>
+  <a class="btn btn--ghost" href="{{ url_for('admin_exams.results', exam_id=exam.id) }}">Back to results</a>
+{% endcall %}
+
+<section class="card card--flush">
+  <div class="card__head">
+    <div><h2>Card register</h2><div class="sub">{{ rows|length }} students with results</div></div>
+  </div>
+  {% if rows %}
+    <div class="table-wrap">
+      <table class="table table--stack">
+        <thead><tr><th>Student</th><th>Section</th><th class="num">Result</th><th>Card status</th><th class="num">Revision</th><th>Generated</th><th class="num"></th></tr></thead>
+        <tbody>
+          {% for row in rows %}
+            {% set card = cards.get(row.student_id) %}
+            <tr>
+              <td data-label="Student">
+                <span class="row-title">{{ row.student.full_name if row.student else "—" }}</span>
+                <span class="sub">{{ row.student.admission_no if row.student else "" }}</span>
+              </td>
+              <td data-label="Section">{{ row.section.label if row.section else "—" }}</td>
+              <td data-label="Result" class="num">{{ row.percentage|percent }} · {{ row.grade or "—" }}</td>
+              <td data-label="Card status">
+                {% if card %}{{ status_badge(card.status) }}{% else %}<span class="badge badge--neutral">Not generated</span>{% endif %}
+              </td>
+              <td data-label="Revision" class="num">{{ card.revision if card else "—" }}</td>
+              <td data-label="Generated" class="small">
+                {% if card %}{{ card.created_at|dt }}{% else %}—{% endif %}
+              </td>
+              <td data-label="" class="num">
+                {% if card and card.pdf_file %}
+                  <a class="btn btn--quiet btn--sm" href="{{ url_for('files.serve', file_uuid=card.pdf_file.uuid) }}">Download</a>
+                {% else %}
+                  <span class="muted small">No PDF</span>
+                {% endif %}
+              </td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  {% else %}
+    {{ empty("Nothing to generate", "Compute results for this examination first, then generate report cards.", "file-text", url_for('admin_exams.results', exam_id=exam.id), "Open results") }}
+  {% endif %}
+</section>
+{% endblock %}

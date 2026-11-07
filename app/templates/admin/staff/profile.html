@@ -1,0 +1,114 @@
+{% extends "layouts/app.html" %}
+{% from "macros/ui.html" import page_head, status_badge, avatar, empty %}
+{% from "macros/icons.html" import icon %}
+
+{% block title %}{{ staff.full_name }} · {{ school.name }}{% endblock %}
+
+{% block content %}
+<div class="breadcrumb">
+  <a href="{{ url_for('admin_staff.index') }}">Staff</a>
+  <span>{{ staff.full_name }}</span>
+</div>
+
+{% call page_head(staff.full_name, staff.designation ~ " · " ~ staff.staff_type.value|replace("_", " ")|title) %}
+  {% if has_permission("staff.manage") %}
+    <a class="btn btn--ghost" href="{{ url_for('admin_staff.edit', staff_id=staff.id) }}">{{ icon("edit", 16) }} Edit record</a>
+  {% endif %}
+{% endcall %}
+
+<div class="grid grid--sidebar">
+  <div class="stack">
+    <section class="card card--pad">
+      <div class="cluster" style="align-items:flex-start">
+        {{ avatar(staff.full_name, None, "avatar--xl") }}
+        <div style="flex:1">
+          <h2 class="mb-0">{{ staff.full_name }}</h2>
+          <div class="muted small">{{ staff.employee_code }} · joined {{ staff.joining_date|d }}</div>
+          <div class="cluster mt-1">
+            <span class="badge badge--info">{{ staff.staff_type.value|replace("_", " ")|title }}</span>
+            <span class="badge {{ 'badge--success' if staff.employment_status == 'ACTIVE' else 'badge--neutral' }}">{{ staff.employment_status|replace("_", " ")|title }}</span>
+            {% if staff.gender %}<span class="badge">{{ staff.gender.value|title }}</span>{% endif %}
+          </div>
+        </div>
+      </div>
+      <hr>
+      <dl class="dl">
+        <dt>Login</dt><dd>{{ staff.user.username if staff.user else "—" }}</dd>
+        <dt>Email</dt><dd>{{ staff.user.email if staff.user and staff.user.email else "—" }}</dd>
+        <dt>Phone</dt><dd>{{ staff.phone or "—" }}</dd>
+        <dt>Qualification</dt><dd>{{ staff.qualification or "—" }}</dd>
+        <dt>Specialisation</dt><dd>{{ staff.specialisation or "—" }}</dd>
+        <dt>Address</dt><dd>{{ staff.address or "—" }}</dd>
+      </dl>
+    </section>
+
+    <section class="card">
+      <div class="card__head"><h2>Subject allocations</h2><span class="sub">{{ allocations|length }} this year</span></div>
+      <div class="table-wrap">
+        <table class="table table--compact">
+          <thead><tr><th>Section</th><th>Subject</th><th class="num">Periods / week</th></tr></thead>
+          <tbody>
+            {% for row in allocations %}
+              <tr>
+                <td>{{ row.section.label }}</td>
+                <td>{{ row.subject.name }}</td>
+                <td class="num">{{ row.periods_per_week }}</td>
+              </tr>
+            {% else %}
+              <tr><td colspan="3" class="muted">No subjects assigned for the current year.</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section class="card">
+      <div class="card__head"><h2>Leave history</h2></div>
+      <div class="table-wrap">
+        <table class="table table--compact">
+          <thead><tr><th>Dates</th><th>Type</th><th class="num">Days</th><th>Status</th></tr></thead>
+          <tbody>
+            {% for row in leave %}
+              <tr>
+                <td class="small">{{ row.from_date|d }} – {{ row.to_date|d }}</td>
+                <td class="small">{{ row.leave_type|replace("_", " ")|title }}</td>
+                <td class="num">{{ row.days }}</td>
+                <td>{{ status_badge(row.status) }}</td>
+              </tr>
+            {% else %}
+              <tr><td colspan="4" class="muted">No leave has been recorded.</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </section>
+  </div>
+
+  <div class="stack">
+    <section class="card card--pad">
+      <div class="stat__label">Weekly teaching load</div>
+      <div class="stat__value">{{ load }} <span class="small muted">periods</span></div>
+      <p class="muted small mb-0">Derived from the published timetable.</p>
+    </section>
+
+    <section class="card card--pad">
+      <h2 class="mb-2">Class teacher of</h2>
+      {% if sections %}
+        <ul class="list">
+          {% for section in sections %}
+            <li class="list__item"><span class="list__body">{{ section.label }}</span></li>
+          {% endfor %}
+        </ul>
+      {% else %}
+        <p class="muted small mb-0">Not a class teacher this year.</p>
+      {% endif %}
+    </section>
+
+    {% if has_permission("staff.leave.approve") %}
+      <section class="card card--pad">
+        <a class="btn btn--ghost btn--block" href="{{ url_for('admin_staff.leave', status='PENDING') }}">Review pending leave</a>
+      </section>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

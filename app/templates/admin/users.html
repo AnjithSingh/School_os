@@ -1,0 +1,84 @@
+{% extends "layouts/app.html" %}
+{% from "macros/ui.html" import page_head, field, status_badge, pagination, empty %}
+{% from "macros/icons.html" import icon %}
+
+{% block title %}Users · {{ school.name }}{% endblock %}
+
+{% block content %}
+{% call page_head("User accounts", "Every staff login in the school. Parent and student accounts are created from their own records.") %}
+  <a class="btn btn--primary" href="{{ url_for('admin.user_new') }}">{{ icon("plus", 16) }} New user</a>
+{% endcall %}
+
+<form class="filter-bar mb-2" method="get">
+  <div class="field">
+    <label for="role">Role</label>
+    <select class="select" id="role" name="role">
+      <option value="">All roles</option>
+      {% for value in roles %}
+        <option value="{{ value.value }}" {{ 'selected' if role == value.value }}>{{ value.label }}</option>
+      {% endfor %}
+    </select>
+  </div>
+  <button class="btn btn--ghost" type="submit">Filter</button>
+</form>
+
+<section class="card card--flush">
+  {% if page.items %}
+    <div class="table-wrap">
+      <table class="table table--stack">
+        <thead>
+          <tr><th>User</th><th>Role</th><th>Last sign-in</th><th>Status</th><th class="num">Actions</th></tr>
+        </thead>
+        <tbody>
+          {% for user in page.items %}
+            <tr>
+              <td data-label="User">
+                <div class="person">
+                  <span class="avatar">{{ user.full_name|initials }}</span>
+                  <div>
+                    <div class="person__name">{{ user.full_name }}</div>
+                    <div class="person__meta">{{ user.username }}{% if user.email %} · {{ user.email }}{% endif %}</div>
+                  </div>
+                </div>
+              </td>
+              <td data-label="Role"><span class="badge badge--info">{{ user.role.label }}</span></td>
+              <td data-label="Last sign-in">
+                {% if user.last_login_at %}
+                  <span class="small">{{ user.last_login_at|dt }}</span>
+                {% else %}
+                  <span class="muted small">Never</span>
+                {% endif %}
+              </td>
+              <td data-label="Status">
+                {% if user.is_active %}
+                  {{ status_badge("ACTIVE") }}
+                {% else %}
+                  {{ status_badge("INACTIVE") }}
+                {% endif %}
+                {% if user.must_change_password %}<span class="badge badge--warning">Temp password</span>{% endif %}
+              </td>
+              <td data-label="Actions" class="num nowrap">
+                <a class="btn btn--quiet btn--sm" href="{{ url_for('admin.user_edit', user_id=user.id) }}">Edit</a>
+                <form class="inline-form" method="post" action="{{ url_for('admin.user_reset', user_id=user.id) }}">
+                  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                  <button class="btn btn--quiet btn--sm" type="submit">Reset link</button>
+                </form>
+                {% if user.id != current_user.id %}
+                  <form class="inline-form" method="post" action="{{ url_for('admin.user_toggle', user_id=user.id) }}"
+                        data-confirm="Change the sign-in status for {{ user.full_name }}?">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <button class="btn btn--quiet btn--sm" type="submit">{{ 'Deactivate' if user.is_active else 'Activate' }}</button>
+                  </form>
+                {% endif %}
+              </td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    <div class="card__foot">{{ pagination(page) }}</div>
+  {% else %}
+    {{ empty("No users match that filter", "Try a different role, or create a new staff account.", "key") }}
+  {% endif %}
+</section>
+{% endblock %}

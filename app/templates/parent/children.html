@@ -1,0 +1,74 @@
+{% extends "layouts/app.html" %}
+{% from "macros/ui.html" import page_head, status_badge, badge, empty %}
+{% from "macros/icons.html" import icon %}
+
+{% block title %}My children · {{ school.name }}{% endblock %}
+
+{% block content %}
+{{ page_head("My children", "Each link is verified by the school office. Permissions are set per child, so access to results, attendance, fees or homework can differ.") }}
+
+{% if rows %}
+  <div class="grid grid--2">
+    {% for student, link in rows %}
+      <section class="card card--pad">
+        <div class="between" style="align-items:flex-start">
+          <div class="cluster" style="align-items:flex-start">
+            <span class="avatar avatar--lg">{{ student.full_name|initials }}</span>
+            <div>
+              <h2 class="mb-0">{{ student.full_name }}</h2>
+              <div class="small muted">{{ student.admission_no }} · {{ link.relationship or "Guardian" }}</div>
+            </div>
+          </div>
+          <div class="cluster" style="justify-content:flex-end">
+            {% if link.is_primary %}{{ badge("Primary", "accent") }}{% endif %}
+            {{ status_badge(link.status) }}
+            {% if active_id == student.id %}{{ badge("Viewing", "info") }}{% endif %}
+          </div>
+        </div>
+
+        <hr>
+
+        <div class="cluster mb-2">
+          <span class="badge {{ 'badge--success' if link.can_view_academics else 'badge--neutral' }}">Results {{ "on" if link.can_view_academics else "off" }}</span>
+          <span class="badge {{ 'badge--success' if link.can_view_attendance else 'badge--neutral' }}">Attendance {{ "on" if link.can_view_attendance else "off" }}</span>
+          <span class="badge {{ 'badge--success' if link.can_pay_fees else 'badge--neutral' }}">Fees {{ "on" if link.can_pay_fees else "off" }}</span>
+          <span class="badge {{ 'badge--success' if link.can_view_homework else 'badge--neutral' }}">Homework {{ "on" if link.can_view_homework else "off" }}</span>
+          <span class="badge {{ 'badge--success' if link.can_apply_leave else 'badge--neutral' }}">Leave {{ "on" if link.can_apply_leave else "off" }}</span>
+        </div>
+
+        <dl class="dl mb-2">
+          <dt>Date of birth</dt><dd>{{ student.dob|d if student.dob else "Not recorded" }}</dd>
+          <dt>Status</dt><dd>{{ student.status.value|title }}</dd>
+          {% if link.verified_at %}<dt>Verified</dt><dd>{{ link.verified_at|dt }}</dd>{% endif %}
+        </dl>
+
+        <div class="cluster">
+          {% if link.can_view_academics %}
+            <a class="btn btn--ghost btn--sm" href="{{ url_for('parent.child_results', student_id=student.id) }}">Results</a>
+          {% endif %}
+          {% if link.can_view_attendance %}
+            <a class="btn btn--ghost btn--sm" href="{{ url_for('parent.child_attendance', student_id=student.id) }}">Attendance</a>
+          {% endif %}
+          {% if link.can_pay_fees %}
+            <a class="btn btn--ghost btn--sm" href="{{ url_for('parent.child_fees', student_id=student.id) }}">Fees</a>
+          {% endif %}
+          {% if link.can_view_homework %}
+            <a class="btn btn--ghost btn--sm" href="{{ url_for('parent.child_homework', student_id=student.id) }}">Homework</a>
+          {% endif %}
+          <a class="btn btn--primary btn--sm" href="{{ url_for('parent.child_timetable', student_id=student.id) }}">Open dashboard</a>
+        </div>
+
+        {% if active_id != student.id %}
+          <form method="post" action="{{ url_for('parent.select_child', student_id=student.id) }}" class="mt-2">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <input type="hidden" name="next" value="{{ url_for('parent.home') }}">
+            <button class="btn btn--quiet btn--sm" type="submit">Make this my active child</button>
+          </form>
+        {% endif %}
+      </section>
+    {% endfor %}
+  </div>
+{% else %}
+  {{ empty("No children linked", "Your guardian account is not linked to any student yet. The school office must verify the relationship before records appear.", "users") }}
+{% endif %}
+{% endblock %}

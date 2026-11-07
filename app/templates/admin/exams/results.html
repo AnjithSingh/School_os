@@ -1,0 +1,97 @@
+{% extends "layouts/app.html" %}
+{% from "macros/ui.html" import page_head, status_badge, empty, progress_bar %}
+{% from "macros/icons.html" import icon %}
+
+{% block title %}Results · {{ exam.name }} · {{ school.name }}{% endblock %}
+
+{% block content %}
+<div class="breadcrumb">
+  <a href="{{ url_for('admin_exams.index') }}">Examinations</a>
+  <a href="{{ url_for('admin_exams.detail', exam_id=exam.id) }}">{{ exam.name }}</a>
+  <span>Results</span>
+</div>
+
+{% call page_head("Results · " ~ exam.name, "Computed summaries for " ~ (exam.session.name if exam.session else "this year") ~ ". Publishing notifies families and locks the snapshot.") %}
+  {{ status_badge(exam.status) }}
+  <form class="inline-form" method="post" action="{{ url_for('admin_exams.compute', exam_id=exam.id) }}" data-confirm="Recompute results from approved marks sheets?">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <button class="btn btn--ghost" type="submit">Recompute</button>
+  </form>
+  <form class="inline-form" method="post" action="{{ url_for('admin_exams.publish_results', exam_id=exam.id) }}" data-confirm="Publish these results to parents and students?">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <button class="btn btn--accent" type="submit">Publish results</button>
+  </form>
+  <a class="btn btn--ghost" href="{{ url_for('admin_exams.report_cards', exam_id=exam.id) }}">Report cards</a>
+{% endcall %}
+
+{% set ns = namespace(pass=0, total_pct=0.0, highest=0.0, lowest=none) %}
+{% for row in rows %}
+  {% if row.result_status.value == "PASS" %}{% set ns.pass = ns.pass + 1 %}{% endif %}
+  {% set ns.total_pct = ns.total_pct + row.percentage %}
+  {% if row.percentage > ns.highest %}{% set ns.highest = row.percentage %}{% endif %}
+  {% if ns.lowest is none or row.percentage < ns.lowest %}{% set ns.lowest = row.percentage %}{% endif %}
+{% endfor %}
+
+<div class="grid grid--4 mb-2">
+  <div class="stat"><div class="stat__label">Students</div><div class="stat__value">{{ rows|length }}</div><div class="stat__hint">with computed results</div></div>
+  <div class="stat stat--success"><div class="stat__label">Passed</div><div class="stat__value">{{ ns.pass }}</div><div class="stat__hint">{{ ((ns.pass / rows|length * 100) if rows else 0)|percent }} pass rate</div></div>
+  <div class="stat stat--accent"><div class="stat__label">School average</div><div class="stat__value">{{ ((ns.total_pct / rows|length) if rows else 0)|percent }}</div><div class="stat__hint">mean percentage</div></div>
+  <div class="stat stat--danger"><div class="stat__label">Range</div><div class="stat__value">{{ ns.lowest|percent if ns.lowest is not none else "—" }} – {{ ns.highest|percent }}</div><div class="stat__hint">lowest to highest</div></div>
+</div>
+
+<section class="card card--flush">
+  <div class="card__head">
+    <div><h2>Result sheet</h2><div class="sub">Click a student to open and edit remarks</div></div>
+  </div>
+  {% if rows %}
+    <div class="table-wrap">
+      <table class="table table--stack">
+        <thead><tr><th>Student</th><th>Section</th><th class="num">Marks</th><th class="num">Percentage</th><th>Grade</th><th class="num">Failed</th><th>Result</th><th class="num"></th></tr></thead>
+        <tbody>
+          {% for row in rows %}
+            {% set remark = remarks.get(row.student_id) %}
+            <tr>
+              <td data-label="Student">
+                <span class="row-title">{{ row.student.full_name if row.student else "—" }}</span>
+                <span class="sub">{{ row.student.admission_no if row.student else "" }}</span>
+              </td>
+              <td data-label="Section">{{ row.section.label if row.section else "—" }}</td>
+              <td data-label="Marks" class="num">{{ row.total_obtained }} / {{ row.total_max }}</td>
+              <td data-label="Percentage" class="num">
+                {{ row.percentage|percent }}
+                <div style="min-width:90px">{{ progress_bar(row.percentage, "success" if row.percentage >= 60 else "warning" if row.percentage >= 33 else "danger") }}</div>
+              </td>
+              <td data-label="Grade"><strong>{{ row.grade or "—" }}</strong>{% if row.grade_point is not none %}<span class="sub">{{ row.grade_point }} pts</span>{% endif %}</td>
+              <td data-label="Failed" class="num">{{ row.subjects_failed }}</td>
+              <td data-label="Result">{{ status_badge(row.result_status) }}</td>
+              <td data-label="" class="num">
+                <button class="btn btn--quiet btn--sm" type="button" data-toggle-target="#remark-{{ row.student_id }}" aria-expanded="false">Remarks</button>
+              </td>
+            </tr>
+            <tr id="remark-{{ row.student_id }}" hidden>
+              <td colspan="8">
+                <form method="post" action="{{ url_for('admin_exams.save_remark', exam_id=exam.id, student_id=row.student_id) }}">
+                  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                  <div class="form-grid">
+                    <div class="field">
+                      <label for="tr-{{ row.student_id }}">Teacher remark</label>
+                      <textarea class="textarea" id="tr-{{ row.student_id }}" name="teacher_remark" rows="2">{{ remark.teacher_remark if remark and remark.teacher_remark else "" }}</textarea>
+                    </div>
+                    <div class="field">
+                      <label for="pr-{{ row.student_id }}">Principal remark</label>
+                      <textarea class="textarea" id="pr-{{ row.student_id }}" name="principal_remark" rows="2">{{ remark.principal_remark if remark and remark.principal_remark else "" }}</textarea>
+                    </div>
+                  </div>
+                  <div class="form-actions"><button class="btn btn--primary btn--sm" type="submit">Save remarks</button></div>
+                </form>
+              </td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  {% else %}
+    {{ empty("No results computed yet", "Approve the marks sheets, then compute results from this page.", "award", url_for('admin_exams.detail', exam_id=exam.id), "Open examination") }}
+  {% endif %}
+</section>
+{% endblock %}

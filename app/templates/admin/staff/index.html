@@ -1,0 +1,67 @@
+{% extends "layouts/app.html" %}
+{% from "macros/ui.html" import page_head, badge, pagination, empty, avatar %}
+{% from "macros/icons.html" import icon %}
+
+{% block title %}Staff · {{ school.name }}{% endblock %}
+
+{% block content %}
+{% call page_head("Staff", "Teaching and non-teaching staff records, logins and workload.") %}
+  {% if has_permission("staff.manage") %}
+    <a class="btn btn--ghost" href="{{ url_for('admin_staff.leave') }}">Leave requests</a>
+    <a class="btn btn--primary" href="{{ url_for('admin_staff.create') }}">{{ icon("plus", 16) }} Add staff</a>
+  {% elif has_permission("staff.leave.approve") %}
+    <a class="btn btn--ghost" href="{{ url_for('admin_staff.leave') }}">Leave requests</a>
+  {% endif %}
+{% endcall %}
+
+<form class="filter-bar mb-2" method="get">
+  <div class="field">
+    <label for="q">Search</label>
+    <input class="input search-input" id="q" name="q" value="{{ q }}" placeholder="Name or employee ID">
+  </div>
+  <div class="field">
+    <label for="type">Staff type</label>
+    <select class="select" id="type" name="type">
+      <option value="">All staff</option>
+      {% for value in staff_types %}
+        <option value="{{ value.value }}" {{ 'selected' if staff_type == value.value }}>{{ value.value.replace("_", " ")|title }}</option>
+      {% endfor %}
+    </select>
+  </div>
+  <button class="btn btn--ghost" type="submit">{{ icon("search", 16) }} Search</button>
+  <a class="btn btn--quiet" href="{{ url_for('admin_staff.index') }}">Clear</a>
+</form>
+
+<section class="card card--flush">
+  {% if page.items %}
+    <div class="table-wrap">
+      <table class="table table--stack">
+        <thead><tr><th>Staff member</th><th>Employee ID</th><th>Type</th><th>Designation</th><th>Status</th><th class="num"></th></tr></thead>
+        <tbody>
+          {% for person in page.items %}
+            <tr>
+              <td data-label="Staff member">
+                <div class="person">
+                  {{ avatar(person.full_name) }}
+                  <div>
+                    <a class="person__name" href="{{ url_for('admin_staff.profile', staff_id=person.id) }}">{{ person.full_name }}</a>
+                    <div class="person__meta">{{ person.user.email if person.user and person.user.email else (person.phone or "No contact") }}</div>
+                  </div>
+                </div>
+              </td>
+              <td data-label="Employee ID" class="mono small">{{ person.employee_code }}</td>
+              <td data-label="Type"><span class="badge badge--info">{{ person.staff_type.value|replace("_", " ")|title }}</span></td>
+              <td data-label="Designation" class="small">{{ person.designation or "—" }}</td>
+              <td data-label="Status">{{ badge(person.employment_status|replace("_", " ")|title, "success" if person.employment_status == "ACTIVE" else "neutral") }}</td>
+              <td data-label="" class="num"><a class="btn btn--quiet btn--sm" href="{{ url_for('admin_staff.profile', staff_id=person.id) }}">Open</a></td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    <div class="card__foot">{{ pagination(page) }}</div>
+  {% else %}
+    {{ empty("No staff match", "Try clearing the search, or add the first staff member.", "id-card", url_for('admin_staff.create') if has_permission('staff.manage') else None, "Add staff") }}
+  {% endif %}
+</section>
+{% endblock %}

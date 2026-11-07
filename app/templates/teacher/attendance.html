@@ -1,0 +1,98 @@
+{% extends "layouts/app.html" %}
+{% from "macros/ui.html" import page_head, empty %}
+{% from "macros/icons.html" import icon %}
+
+{% block title %}Attendance · {{ school.name }}{% endblock %}
+
+{% block content %}
+{% if not sections %}
+  {{ page_head("Mark attendance", "Daily attendance for the sections you teach.") }}
+  {{ empty("No sections assigned", "You need at least one subject allocation before you can mark attendance.", "users", url_for('teacher.classes'), "Open my classes") }}
+{% else %}
+
+{% call page_head("Mark attendance" ~ (" · " ~ section.label if section else ""),
+   (on_date|d("long") if on_date else "") ~ (" · " ~ rows|length ~ " students" if section else "")) %}
+  {% if section %}
+    <a class="btn btn--ghost" href="{{ url_for('teacher.class_detail', section_id=section.id) }}">{{ icon("users", 16) }} Class roster</a>
+  {% endif %}
+{% endcall %}
+
+{% if holiday %}
+  <div class="notice mb-2"><strong>Holiday.</strong> {{ on_date|d("long") }} is marked as a holiday. You can still record attendance, but it will count towards the register.</div>
+{% endif %}
+
+<form method="get" class="filter-bar mb-2">
+  <div class="field">
+    <label for="section">Section</label>
+    <select class="select" id="section" name="section_id">
+      {% for item in sections %}
+        <option value="{{ item.id }}" {{ 'selected' if section and item.id == section.id }}>{{ item.label }}</option>
+      {% endfor %}
+    </select>
+  </div>
+  <div class="field">
+    <label for="date">Date</label>
+    <input class="input" type="date" id="date" name="date" value="{{ on_date.isoformat() if on_date else '' }}">
+  </div>
+  <button class="btn btn--ghost" type="submit">Load register</button>
+</form>
+
+{% if section %}
+  <form method="post" action="{{ url_for('teacher.save_attendance') }}">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <input type="hidden" name="section_id" value="{{ section.id }}">
+    <input type="hidden" name="date" value="{{ on_date.isoformat() }}">
+
+    <section class="card card--flush">
+      <div class="card__head">
+        <div>
+          <h2>{{ section.label }} · {{ on_date|d("long") }}</h2>
+          <div class="sub">{{ rows|length }} students · previously marked records are loaded for editing</div>
+        </div>
+        <div class="cluster">
+          <button class="btn btn--ghost btn--sm" type="button" data-mark-all="PRESENT">All present</button>
+          <button class="btn btn--ghost btn--sm" type="button" data-mark-all="ABSENT">All absent</button>
+        </div>
+      </div>
+      {% if rows %}
+        <div class="table-wrap">
+          <table class="table table--stack marks-table">
+            <thead><tr><th style="width:70px">Roll</th><th>Student</th><th style="width:170px">Status</th><th>Remarks</th></tr></thead>
+            <tbody>
+              {% for enrollment in rows %}
+                {% set record = records.get(enrollment.student_id) if records else None %}
+                <tr class="{{ 'is-absent' if record and record.status.value == 'ABSENT' }}">
+                  <td data-label="Roll" class="num">{{ enrollment.roll_no or "—" }}</td>
+                  <td data-label="Student">
+                    <span class="row-title">{{ enrollment.student.full_name if enrollment.student else "—" }}</span>
+                    <span class="sub">{{ enrollment.student.admission_no if enrollment.student else "" }}</span>
+                  </td>
+                  <td data-label="Status">
+                    <select class="select" name="status_{{ enrollment.student_id }}" data-mark-status aria-label="Attendance status for {{ enrollment.student.full_name if enrollment.student else 'student' }}">
+                      {% for status in statuses %}
+                        <option value="{{ status.value }}" {{ 'selected' if (record and record.status == status) or (not record and status.value == 'PRESENT') }}>{{ status.label }}</option>
+                      {% endfor %}
+                    </select>
+                  </td>
+                  <td data-label="Remarks">
+                    <input class="input input--wide" name="remarks_{{ enrollment.student_id }}" value="{{ record.remarks if record and record.remarks else '' }}" placeholder="Optional note">
+                  </td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+        <div class="card__foot">
+          <div class="between">
+            <span class="small muted">Existing records are updated, new ones created. Every edit is written to the audit log.</span>
+            <button class="btn btn--primary" type="submit">{{ icon("check", 16) }} Save attendance</button>
+          </div>
+        </div>
+      {% else %}
+        {{ empty("No students", "This section has no active enrolment yet.", "users") }}
+      {% endif %}
+    </section>
+  </form>
+{% endif %}
+{% endif %}
+{% endblock %}

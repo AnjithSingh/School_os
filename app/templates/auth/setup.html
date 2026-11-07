@@ -1,0 +1,51 @@
+{% extends "layouts/auth.html" %}
+{% from "macros/ui.html" import field %}
+
+{% block title %}Set up your school · School OS{% endblock %}
+
+{% block aside %}
+  <h1>Let's set up your school.</h1>
+  <p>This one-time step creates the school record, the current academic year, the default exam types and grade scale, and your owner account.</p>
+  <ul class="auth-aside__points">
+    <li>Classes 6 to 10, multiple sections</li>
+    <li>Configurable exam types and grading</li>
+    <li>You can change every value later in settings</li>
+  </ul>
+{% endblock %}
+
+{% block content %}
+<div class="card">
+  <h2>Create your school</h2>
+  <p class="sub">You will sign in with the owner account you create here.</p>
+  <form method="post" novalidate>
+    {{ form.hidden_tag() }}
+
+    <fieldset class="fieldset">
+      <legend>School</legend>
+      <div class="stack">
+        {{ field(form.school_name, placeholder="e.g. Sunrise Public School") }}
+        <div class="form-grid">
+          {{ field(form.school_short_name, placeholder="Sunrise") }}
+          {{ field(form.city) }}
+          {{ field(form.state) }}
+          {{ field(form.phone) }}
+          {{ field(form.school_email, cls="span-2") }}
+        </div>
+      </div>
+    </fieldset>
+
+    <fieldset class="fieldset">
+      <legend>Owner account</legend>
+      <div class="form-grid">
+        {{ field(form.admin_name, cls="span-2") }}
+        {{ field(form.username, autocomplete="username") }}
+        {{ field(form.email, autocomplete="email") }}
+        {{ field(form.password, autocomplete="new-password") }}
+        {{ field(form.confirm, autocomplete="new-password") }}
+      </div>
+    </fieldset>
+
+    {{ form.submit(class_="btn btn--primary btn--block") }}
+  </form>
+</div>
+{% endblock %}

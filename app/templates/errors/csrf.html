@@ -1,0 +1,10 @@
+{% extends "layouts/error.html" %}
+{% block code %}Security check{% endblock %}
+{% block heading %}Your form session expired{% endblock %}
+{% block message %}For your safety the page token expired. Reload the page and submit the form again.{% endblock %}
+{% block actions %}
+  <div class="cluster" style="justify-content:center">
+    <button type="button" class="btn btn--primary" data-back>Go back and retry</button>
+    <a class="btn btn--ghost" href="{{ url_for('auth.index') }}">Home</a>
+  </div>
+{% endblock %}

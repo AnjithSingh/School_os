@@ -1,0 +1,59 @@
+{% extends "layouts/app.html" %}
+{% from "macros/ui.html" import page_head, status_badge, pagination, empty %}
+{% from "macros/icons.html" import icon %}
+
+{% block title %}Leave requests · {{ school.name }}{% endblock %}
+
+{% block content %}
+{{ page_head("Leave requests", "Staff leave applications, with the decision and reviewer recorded.") }}
+
+<div class="tabs mb-2">
+  {% for value in statuses %}
+    <a class="tab {{ 'is-active' if status == value.value }}" href="{{ url_for('admin_staff.leave', status=value.value) }}">{{ value.value|title }}</a>
+  {% endfor %}
+  <a class="tab {{ 'is-active' if not status }}" href="{{ url_for('admin_staff.leave', status='') }}">All</a>
+</div>
+
+<section class="card card--flush">
+  {% if page.items %}
+    <div class="table-wrap">
+      <table class="table table--stack">
+        <thead><tr><th>Applicant</th><th>Dates</th><th>Type</th><th class="num">Days</th><th>Status</th><th>Review</th></tr></thead>
+        <tbody>
+          {% for row in page.items %}
+            <tr>
+              <td data-label="Applicant">
+                <span class="row-title">{{ row.subject_label }}</span>
+                <span class="sub">{{ row.scope.value|title }}{% if row.applicant %} · applied by {{ row.applicant.full_name }}{% endif %}</span>
+              </td>
+              <td data-label="Dates" class="small">{{ row.from_date|d }} – {{ row.to_date|d }}</td>
+              <td data-label="Type" class="small">{{ row.leave_type|replace("_", " ")|title }}</td>
+              <td data-label="Days" class="num">{{ row.days }}</td>
+              <td data-label="Status">
+                {{ status_badge(row.status) }}
+                {% if row.review_remarks %}<span class="sub">{{ row.review_remarks }}</span>{% endif %}
+              </td>
+              <td data-label="Review">
+                {% if row.status.value == "PENDING" %}
+                  <form method="post" action="{{ url_for('admin_staff.review_leave', leave_id=row.id, status=status) }}" class="cluster">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <input class="input" name="remarks" placeholder="Remarks" style="min-width:120px">
+                    <button class="btn btn--primary btn--sm" type="submit" name="decision" value="APPROVED">Approve</button>
+                    <button class="btn btn--danger btn--sm" type="submit" name="decision" value="REJECTED">Reject</button>
+                  </form>
+                {% else %}
+                  <span class="small muted">{{ row.reviewer.full_name if row.reviewer else "—" }} · {{ row.reviewed_at|dt }}</span>
+                {% endif %}
+                <div class="small muted mt-1">{{ row.reason }}</div>
+              </td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    <div class="card__foot">{{ pagination(page) }}</div>
+  {% else %}
+    {{ empty("No leave applications", "Nothing matches this status right now.", "clock") }}
+  {% endif %}
+</section>
+{% endblock %}

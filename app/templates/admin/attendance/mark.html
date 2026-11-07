@@ -1,0 +1,87 @@
+{% extends "layouts/app.html" %}
+{% from "macros/ui.html" import page_head, status_badge %}
+{% from "macros/icons.html" import icon %}
+
+{% block title %}Mark attendance · {{ school.name }}{% endblock %}
+
+{% block content %}
+<div class="breadcrumb">
+  <a href="{{ url_for('admin_attendance.index', date=on_date.isoformat()) }}">Attendance</a>
+  <span>{{ section.label }}</span>
+</div>
+
+{% call page_head("Mark attendance · " ~ section.label, on_date|d("long") ~ " · " ~ enrollments|length ~ " students") %}
+  <a class="btn btn--ghost" href="{{ url_for('admin_attendance.index', date=on_date.isoformat()) }}">{{ icon("arrow-left", 16) }} Back</a>
+{% endcall %}
+
+{% if holiday %}
+  <div class="notice mb-2"><strong>This is a Sunday or a holiday.</strong> You can still mark attendance, but it will count towards the monthly register.</div>
+{% endif %}
+
+<form method="get" class="filter-bar mb-2">
+  <div class="field">
+    <label for="section">Section</label>
+    <select class="select" id="section" name="section_id">
+      {% for item in sections %}
+        <option value="{{ item.id }}" {{ 'selected' if item.id == section.id }}>{{ item.label }}</option>
+      {% endfor %}
+    </select>
+  </div>
+  <div class="field">
+    <label for="date">Date</label>
+    <input class="input" type="date" id="date" name="date" value="{{ on_date.isoformat() }}">
+  </div>
+  <button class="btn btn--ghost" type="submit">Load register</button>
+</form>
+
+<form method="post" action="{{ url_for('admin_attendance.save') }}">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+  <input type="hidden" name="section_id" value="{{ section.id }}">
+  <input type="hidden" name="date" value="{{ on_date.isoformat() }}">
+
+  <section class="card card--flush">
+    <div class="card__head">
+      <h2>Register</h2>
+      <div class="cluster">
+        <button class="btn btn--ghost btn--sm" type="button" data-mark-all="PRESENT">All present</button>
+        <button class="btn btn--ghost btn--sm" type="button" data-mark-all="ABSENT">All absent</button>
+      </div>
+    </div>
+    <div class="table-wrap">
+      <table class="table table--stack marks-table">
+        <thead><tr><th style="width:70px">Roll</th><th>Student</th><th style="width:160px">Status</th><th>Remarks</th></tr></thead>
+        <tbody>
+          {% for enrollment in enrollments %}
+            {% set record = records.get(enrollment.student_id) %}
+            <tr class="{{ 'is-absent' if record and record.status.value == 'ABSENT' }}">
+              <td data-label="Roll" class="num">{{ enrollment.roll_no or "—" }}</td>
+              <td data-label="Student">
+                <span class="row-title">{{ enrollment.student.full_name }}</span>
+                <span class="sub">{{ enrollment.student.admission_no }}</span>
+              </td>
+              <td data-label="Status">
+                <select class="select" name="status_{{ enrollment.student_id }}" data-mark-status aria-label="Status for {{ enrollment.student.full_name }}">
+                  {% for status in statuses %}
+                    <option value="{{ status.value }}" {{ 'selected' if (record and record.status == status) or (not record and status.value == 'PRESENT') }}>{{ status.label }}</option>
+                  {% endfor %}
+                </select>
+              </td>
+              <td data-label="Remarks">
+                <input class="input input--wide" name="remarks_{{ enrollment.student_id }}" value="{{ record.remarks if record and record.remarks else '' }}" placeholder="Optional note">
+              </td>
+            </tr>
+          {% else %}
+            <tr><td colspan="4" class="muted">No active students in this section.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    <div class="card__foot">
+      <div class="between">
+        <span class="small muted">Existing records are updated, new ones created. Every edit is written to the audit log.</span>
+        <button class="btn btn--primary" type="submit">Save attendance</button>
+      </div>
+    </div>
+  </section>
+</form>
+{% endblock %}

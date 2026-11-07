@@ -1,0 +1,175 @@
+{% extends "layouts/app.html" %}
+{% from "macros/ui.html" import page_head, field, status_badge, empty, progress_bar %}
+{% from "macros/icons.html" import icon %}
+
+{% block title %}Fee ledger · {{ student.full_name }} · {{ school.name }}{% endblock %}
+
+{% block content %}
+<div class="breadcrumb">
+  <a href="{{ url_for('admin_fees.index') }}">Fees</a>
+  <a href="{{ url_for('admin_students.profile', student_id=student.id) }}">{{ student.full_name }}</a>
+  <span>Ledger</span>
+</div>
+
+{% call page_head(student.full_name, student.admission_no ~ " · " ~ (ledger.total_net|money) ~ " billed · " ~ (ledger.balance|money) ~ " outstanding") %}
+  <a class="btn btn--ghost" href="{{ url_for('admin_students.profile', student_id=student.id) }}">Student profile</a>
+  <a class="btn btn--ghost" href="{{ url_for('admin_fees.payments') }}">All payments</a>
+{% endcall %}
+
+<div class="grid grid--4 mb-2">
+  <div class="stat"><div class="stat__label">Net billed</div><div class="stat__value">{{ ledger.total_net|money }}</div><div class="stat__hint">after concessions</div></div>
+  <div class="stat stat--success"><div class="stat__label">Paid</div><div class="stat__value">{{ ledger.total_paid|money }}</div><div class="stat__hint">{{ ((ledger.total_paid / ledger.total_net * 100) if ledger.total_net else 0)|percent }} settled</div></div>
+  <div class="stat stat--danger"><div class="stat__label">Balance</div><div class="stat__value">{{ ledger.balance|money }}</div><div class="stat__hint">{{ ledger.overdue|money }} overdue</div></div>
+  <div class="stat stat--accent"><div class="stat__label">Receipts</div><div class="stat__value">{{ ledger.payments|length }}</div><div class="stat__hint">recorded this year</div></div>
+</div>
+
+<div class="grid grid--sidebar">
+  <div class="stack">
+    <section class="card card--flush">
+      <div class="card__head"><h2>Fee heads</h2><span class="sub">{{ ledger.rows|length }} rows</span></div>
+      {% if ledger.rows %}
+        <div class="table-wrap">
+          <table class="table table--stack">
+            <thead><tr><th>Fee head</th><th class="num">Gross</th><th class="num">Concession</th><th class="num">Net</th><th class="num">Paid</th><th class="num">Balance</th><th>Due</th><th>Status</th></tr></thead>
+            <tbody>
+              {% for row in ledger.rows %}
+                <tr>
+                  <td data-label="Fee head">
+                    <span class="row-title">{{ row.fee_structure.category.name if row.fee_structure and row.fee_structure.category else "—" }}</span>
+                    <span class="sub">Installment #{{ row.fee_structure.installment_no if row.fee_structure else "—" }}</span>
+                  </td>
+                  <td data-label="Gross" class="num">{{ row.gross_paise|money }}</td>
+                  <td data-label="Concession" class="num">{{ row.concession_paise|money }}</td>
+                  <td data-label="Net" class="num">{{ row.net_paise|money }}</td>
+                  <td data-label="Paid" class="num">{{ row.paid_paise|money }}</td>
+                  <td data-label="Balance" class="num"><strong class="{{ 'text-danger' if row.balance_paise }}">{{ row.balance_paise|money }}</strong></td>
+                  <td data-label="Due" class="small">{{ row.due_date|d if row.due_date else "—" }}</td>
+                  <td data-label="Status">{{ status_badge(row.status) }}</td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      {% else %}
+        {{ empty("No fees generated", "Generate student fees from the fees page for this academic year.", "credit-card", url_for('admin_fees.index'), "Open fees") }}
+      {% endif %}
+    </section>
+
+    <section class="card card--flush">
+      <div class="card__head"><h2>Payment history</h2><span class="sub">Newest first</span></div>
+      {% if ledger.payments %}
+        <div class="table-wrap">
+          <table class="table table--compact table--stack">
+            <thead><tr><th>Receipt</th><th>Date</th><th>Method</th><th class="num">Amount</th><th>Status</th><th class="num"></th></tr></thead>
+            <tbody>
+              {% for payment in ledger.payments %}
+                <tr>
+                  <td data-label="Receipt" class="mono small">{{ payment.receipt_no }}</td>
+                  <td data-label="Date" class="small">{{ payment.paid_at|dt }}</td>
+                  <td data-label="Method" class="small">{{ payment.method.value|replace("_", " ")|title }}</td>
+                  <td data-label="Amount" class="num">{{ payment.amount_paise|money }}</td>
+                  <td data-label="Status">{{ status_badge(payment.status) }}</td>
+                  <td data-label="" class="num">
+                    <a class="btn btn--quiet btn--sm" href="{{ url_for('admin_fees.receipt', payment_id=payment.id) }}">Receipt</a>
+                  </td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      {% else %}
+        <div class="card__body"><p class="muted small mb-0">No payments recorded for this student yet.</p></div>
+      {% endif %}
+    </section>
+
+    <section class="card card--flush">
+      <div class="card__head"><h2>Concessions</h2><span class="sub">{{ concessions|length }} approved or pending</span></div>
+      {% if concessions %}
+        <div class="table-wrap">
+          <table class="table table--compact">
+            <thead><tr><th>Applies to</th><th>Type</th><th class="num">Value</th><th>Reason</th><th>Status</th></tr></thead>
+            <tbody>
+              {% for row in concessions %}
+                <tr>
+                  <td>{{ row.category.name if row.category else "All categories" }}</td>
+                  <td class="small">{{ row.concession_type.value|title }}</td>
+                  <td class="num">{% if row.concession_type.value == "PERCENT" %}{{ row.value }}%{% else %}{{ row.value|money }}{% endif %}</td>
+                  <td class="small">{{ row.reason or "—" }}</td>
+                  <td>{{ status_badge(row.status) }}</td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      {% else %}
+        <div class="card__body"><p class="muted small mb-0">No concession has been applied.</p></div>
+      {% endif %}
+    </section>
+  </div>
+
+  <div class="stack">
+    <section class="card card--pad">
+      <h2 class="mb-1">Collect a payment</h2>
+      <p class="muted small">Receipts are numbered sequentially and cannot be edited after issue. A reversal creates a new row.</p>
+      {% if payable %}
+        <form method="post" action="{{ url_for('admin_fees.collect', student_id=student.id) }}" novalidate>
+          {{ form.hidden_tag() }}
+          <div class="stack">
+            {{ field(form.student_fee_id) }}
+            {{ field(form.amount) }}
+            {{ field(form.method) }}
+            {{ field(form.reference) }}
+            {{ field(form.notes) }}
+            <button class="btn btn--primary btn--block" type="submit">{{ icon("credit-card", 16) }} Record payment</button>
+          </div>
+        </form>
+      {% else %}
+        <div class="notice">This student has no outstanding balance. Nothing can be collected.</div>
+      {% endif %}
+    </section>
+
+    {% if has_permission("fees.concessions") %}
+      <section class="card card--pad">
+        <h2 class="mb-1">Apply a concession</h2>
+        <p class="muted small">Approved concessions are applied to unpaid fee rows immediately.</p>
+        <form method="post" action="{{ url_for('admin_fees.add_concession', student_id=student.id) }}" novalidate>
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <div class="stack">
+            <div class="field">
+              <label for="fee_category_id">Applies to</label>
+              <select class="select" id="fee_category_id" name="fee_category_id">
+                <option value="0">All categories</option>
+                {% set ns = namespace(seen=[]) %}
+                {% for row in ledger.rows if row.fee_structure and row.fee_structure.category %}
+                  {% if row.fee_structure.category.id not in ns.seen %}
+                    {% set ns.seen = ns.seen + [row.fee_structure.category.id] %}
+                    <option value="{{ row.fee_structure.category.id }}">{{ row.fee_structure.category.name }}</option>
+                  {% endif %}
+                {% endfor %}
+              </select>
+            </div>
+            <div class="form-grid">
+              <div class="field">
+                <label for="concession_type">Type</label>
+                <select class="select" id="concession_type" name="concession_type">
+                  <option value="PERCENT">Percentage</option>
+                  <option value="AMOUNT">Amount (₹)</option>
+                </select>
+              </div>
+              <div class="field">
+                <label for="value">Value</label>
+                <input class="input" id="value" name="value" type="number" min="1" required>
+              </div>
+            </div>
+            <div class="field">
+              <label for="reason">Reason</label>
+              <input class="input" id="reason" name="reason" required placeholder="Staff ward, sibling discount…">
+            </div>
+            <button class="btn btn--ghost btn--block" type="submit">Approve concession</button>
+          </div>
+        </form>
+      </section>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

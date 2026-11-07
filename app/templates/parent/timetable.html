@@ -1,0 +1,63 @@
+{% extends "layouts/app.html" %}
+{% from "macros/ui.html" import page_head, empty %}
+{% from "macros/icons.html" import icon %}
+
+{% block title %}Timetable · {{ student.full_name if student else "Child" }} · {{ school.name }}{% endblock %}
+
+{% block content %}
+{% call page_head("Timetable", (student.full_name if student else "Child") ~ (" · " ~ enrollment.section.label if enrollment else "") ~ (" · " ~ current_session.name if current_session else "")) %}
+  <a class="btn btn--ghost" href="{{ url_for('parent.children') }}">{{ icon("users", 16) }} Switch child</a>
+  <a class="btn btn--ghost" href="{{ url_for('parent.home') }}">{{ icon("arrow-left", 16) }} Family dashboard</a>
+  {% if timetable %}<button class="btn btn--ghost" type="button" data-print>{{ icon("printer", 16) }} Print</button>{% endif %}
+{% endcall %}
+
+{% if not enrollment %}
+  {{ empty("No enrolment for this year", "This child is not enrolled in a section for the current academic year.", "calendar") }}
+{% elif not timetable %}
+  {{ empty("No published timetable", "The school has not published a timetable for this year yet.", "calendar") }}
+{% else %}
+  <div class="cluster mb-2">
+    <span class="badge badge--success">Published</span>
+    <span class="small muted">{{ timetable.name }}{% if timetable.published_at %} · published {{ timetable.published_at|dt }}{% endif %}</span>
+  </div>
+
+  <section class="card card--flush">
+    <div class="tt-wrap">
+      <table class="tt">
+        <thead>
+          <tr>
+            <th>Period</th>
+            {% for name in days %}<th>{{ name }}</th>{% endfor %}
+          </tr>
+        </thead>
+        <tbody>
+          {% for period in periods %}
+            <tr>
+              <th>
+                {{ period.label }}
+                <span class="period-time">{{ period.start_time|t }}–{{ period.end_time|t }}</span>
+              </th>
+              {% if period.is_break %}
+                <td class="is-break" colspan="{{ days|length }}">{{ period.kind.value|title }}</td>
+              {% else %}
+                {% for weekday in range(days|length) %}
+                  {% set entry = week[weekday][period.id] if week and week[weekday] else None %}
+                  <td>
+                    {% if entry %}
+                      <span class="slot">{{ entry.subject.name if entry.subject else "" }}</span>
+                      <span class="slot-meta">{{ entry.teacher.full_name if entry.teacher else "Teacher not set" }}</span>
+                      {% if entry.room %}<span class="slot-meta">{{ entry.room }}</span>{% endif %}
+                    {% else %}
+                      <span class="slot--empty">—</span>
+                    {% endif %}
+                  </td>
+                {% endfor %}
+              {% endif %}
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </section>
+{% endif %}
+{% endblock %}

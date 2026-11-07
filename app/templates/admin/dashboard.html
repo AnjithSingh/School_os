@@ -1,0 +1,187 @@
+{% extends "layouts/app.html" %}
+{% from "macros/ui.html" import page_head, stat, status_badge, empty, progress_bar %}
+{% from "macros/icons.html" import icon %}
+
+{% block title %}Dashboard · {{ school.name }}{% endblock %}
+
+{% block content %}
+{% if data.empty %}
+  {{ page_head("Dashboard", "No academic year is active yet.") }}
+  <div class="card card--pad">
+    {{ empty("Set up the academic year first", "Create or activate an academic year in School Settings before recording attendance, marks or fees.", "calendar", url_for("admin.settings"), "Open settings") }}
+  </div>
+{% else %}
+  <div class="hero mb-3">
+    <div class="hero__badge">{{ icon("spark", 14) }} {{ data.today|d("long") }}</div>
+    <h1>Good to see you, {{ current_user.full_name.split()[0] }}.</h1>
+    <p>
+      {{ data.session.name }} is running. {{ data.total_students }} students across {{ data.total_sections }} sections.
+      {% if data.attendance.percentage is not none %}
+        Attendance marked today is {{ data.attendance.percentage|percent }}.
+      {% else %}
+        Attendance has not been marked today yet.
+      {% endif %}
+    </p>
+    <div class="hero__actions">
+      <a class="btn btn--ghost" href="{{ url_for('admin_attendance.index') }}">{{ icon("check-square", 16) }} Attendance</a>
+      <a class="btn btn--ghost" href="{{ url_for('admin_students.index') }}">{{ icon("users", 16) }} Students</a>
+      <a class="btn btn--ghost" href="{{ url_for('admin_announcements.index') }}">{{ icon("megaphone", 16) }} Announce</a>
+    </div>
+  </div>
+
+  <div class="grid grid--4 mb-2">
+    {{ stat("Students on roll", data.total_students, data.total_sections ~ " sections", "primary", "users") }}
+    {{ stat("Teaching staff", data.total_teachers, data.total_staff ~ " staff in total", "accent", "id-card") }}
+    {{ stat("Attendance today", (data.attendance.percentage|percent) if data.attendance.percentage is not none else "Not marked", data.attendance.marked_total ~ " records", "success" if (data.attendance.percentage or 0) >= 90 else "danger", "check-square") }}
+    {{ stat("Fees outstanding", data.finance.outstanding|money, data.finance.collection_rate|percent ~ " collected", "danger", "credit-card") }}
+  </div>
+
+  {% if data.overdue_fees or data.pending_marks or data.unverified_links %}
+    <div class="grid grid--3 mb-2">
+      {% if data.overdue_fees %}
+        <a class="card card--pad" href="{{ url_for('admin_fees.index', status='overdue') }}" style="color:inherit">
+          <div class="between"><span class="stat__label">Overdue fee accounts</span>{{ icon("alert", 18) }}</div>
+          <div class="stat__value text-danger">{{ data.overdue_fees }}</div>
+          <div class="stat__hint">Past the due date and still unpaid</div>
+        </a>
+      {% endif %}
+      {% if data.pending_marks %}
+        <a class="card card--pad" href="{{ url_for('admin_exams.progress') }}" style="color:inherit">
+          <div class="between"><span class="stat__label">Marks sheets open</span>{{ icon("clipboard", 18) }}</div>
+          <div class="stat__value text-warning">{{ data.pending_marks }}</div>
+          <div class="stat__hint">Draft or reopened, waiting on teachers</div>
+        </a>
+      {% endif %}
+      {% if data.unverified_links %}
+        <a class="card card--pad" href="{{ url_for('admin_guardians.index') }}" style="color:inherit">
+          <div class="between"><span class="stat__label">Guardian links to verify</span>{{ icon("shield", 18) }}</div>
+          <div class="stat__value">{{ data.unverified_links }}</div>
+          <div class="stat__hint">Parents waiting for portal access</div>
+        </a>
+      {% endif %}
+    </div>
+  {% endif %}
+
+  <div class="grid grid--sidebar mb-2">
+    <section class="card">
+      <div class="card__head">
+        <div>
+          <h2>Attendance by section</h2>
+          <div class="sub">{{ data.today|d }} · only marked sections are shown</div>
+        </div>
+        <a class="btn btn--ghost btn--sm" href="{{ url_for('admin_attendance.index') }}">Open register</a>
+      </div>
+      <div class="table-wrap">
+        <table class="table table--stack">
+          <thead>
+            <tr><th>Section</th><th class="num">Marked</th><th class="num">Present</th><th>Rate</th><th></th></tr>
+          </thead>
+          <tbody>
+            {% for row in data.attendance.sections if row.summary.total %}
+              <tr>
+                <td data-label="Section"><span class="row-title">{{ row.section.label }}</span></td>
+                <td data-label="Marked" class="num">{{ row.summary.total }}</td>
+                <td data-label="Present" class="num">{{ row.summary.counts.PRESENT + row.summary.counts.LATE }}</td>
+                <td data-label="Rate" style="min-width:130px">
+                  {{ progress_bar(row.summary.percentage or 0, "success" if (row.summary.percentage or 0) >= 90 else "warning" if (row.summary.percentage or 0) >= 75 else "danger") }}
+                  <span class="tiny muted">{{ row.summary.percentage|percent }}</span>
+                </td>
+                <td class="num">
+                  <a class="btn btn--quiet btn--sm" href="{{ url_for('admin_attendance.mark', section_id=row.section.id) }}">Edit</a>
+                </td>
+              </tr>
+            {% else %}
+              <tr><td colspan="5" class="muted">No section has been marked yet today.</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <div class="stack">
+      <section class="card">
+        <div class="card__head"><h2>Fees this year</h2></div>
+        <div class="card__body">
+          <div class="between mb-1"><span class="muted small">Billed</span><span class="num">{{ data.finance.billed|money }}</span></div>
+          <div class="between mb-1"><span class="muted small">Collected</span><span class="num text-success">{{ data.finance.paid|money }}</span></div>
+          <div class="between mb-2"><span class="muted small">Outstanding</span><span class="num text-danger">{{ data.finance.outstanding|money }}</span></div>
+          {{ progress_bar(data.finance.collection_rate, "success") }}
+          <div class="tiny muted mt-1">{{ data.finance.collection_rate|percent }} of the year's billing collected</div>
+          <a class="btn btn--ghost btn--block mt-2" href="{{ url_for('admin_fees.index') }}">Open fee ledger</a>
+        </div>
+      </section>
+
+      <section class="card">
+        <div class="card__head"><h2>Upcoming examinations</h2></div>
+        <div class="card__body">
+          {% if data.upcoming %}
+            <ul class="list">
+              {% for exam in data.upcoming %}
+                <li class="list__item">
+                  <div class="list__body">
+                    <a class="list__title" href="{{ url_for('admin_exams.detail', exam_id=exam.id) }}">{{ exam.name }}</a>
+                    <div class="list__meta">{{ exam.exam_type.name if exam.exam_type else '—' }} · {{ exam.start_date|d }}</div>
+                  </div>
+                  {{ status_badge(exam.status) }}
+                </li>
+              {% endfor %}
+            </ul>
+          {% else %}
+            <p class="muted small mb-0">No examinations are scheduled. <a href="{{ url_for('admin_exams.index') }}">Create one</a>.</p>
+          {% endif %}
+        </div>
+      </section>
+    </div>
+  </div>
+
+  <div class="grid grid--2">
+    <section class="card">
+      <div class="card__head">
+        <h2>Recent admissions</h2>
+        <a class="btn btn--quiet btn--sm" href="{{ url_for('admin_students.index') }}">All students</a>
+      </div>
+      <div class="card__body">
+        {% if data.recent_admissions %}
+          <ul class="list">
+            {% for enrollment in data.recent_admissions %}
+              <li class="list__item">
+                <div class="list__body">
+                  <a class="list__title" href="{{ url_for('admin_students.profile', student_id=enrollment.student_id) }}">{{ enrollment.student.full_name }}</a>
+                  <div class="list__meta">{{ enrollment.student.admission_no }} · {{ enrollment.section.label }}</div>
+                </div>
+                <span class="tiny muted">{{ enrollment.created_at|ago }}</span>
+              </li>
+            {% endfor %}
+          </ul>
+        {% else %}
+          <p class="muted small mb-0">No admissions recorded for this academic year yet.</p>
+        {% endif %}
+      </div>
+    </section>
+
+    <section class="card">
+      <div class="card__head">
+        <h2>Published announcements</h2>
+        <a class="btn btn--quiet btn--sm" href="{{ url_for('admin_announcements.index') }}">Manage</a>
+      </div>
+      <div class="card__body">
+        {% if data.announcements %}
+          <ul class="list">
+            {% for item in data.announcements %}
+              <li class="list__item">
+                <div class="list__body">
+                  <div class="list__title">{{ item.title }}</div>
+                  <div class="list__meta">{{ item.category.value|replace("_", " ")|title }} · {{ item.publish_at|ago }}</div>
+                </div>
+                {{ status_badge(item.status) }}
+              </li>
+            {% endfor %}
+          </ul>
+        {% else %}
+          <p class="muted small mb-0">Nothing published yet.</p>
+        {% endif %}
+      </div>
+    </section>
+  </div>
+{% endif %}
+{% endblock %}

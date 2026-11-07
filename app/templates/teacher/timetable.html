@@ -1,0 +1,66 @@
+{% extends "layouts/app.html" %}
+{% from "macros/ui.html" import page_head, status_badge, empty %}
+{% from "macros/icons.html" import icon %}
+
+{% block title %}My timetable · {{ school.name }}{% endblock %}
+
+{% block content %}
+{% call page_head("My timetable", "Your weekly teaching grid for " ~ (current_session.name if current_session else "the current year") ~ ". Only published timetables are shown.") %}
+  <a class="btn btn--ghost" href="{{ url_for('teacher.dashboard') }}">{{ icon("arrow-left", 16) }} Dashboard</a>
+  <button class="btn btn--ghost" type="button" data-print>{{ icon("printer", 16) }} Print</button>
+{% endcall %}
+
+{% if not timetable %}
+  {{ empty("No published timetable", "The timetable for this academic year has not been published yet. Check back later or contact the school office.", "calendar") }}
+{% else %}
+  <div class="cluster mb-2">
+    <span class="badge badge--success">Published</span>
+    <span class="small muted">{{ timetable.name }}{% if timetable.published_at %} · published {{ timetable.published_at|dt }}{% endif %}</span>
+  </div>
+
+  <section class="card card--flush">
+    <div class="tt-wrap">
+      <table class="tt">
+        <thead>
+          <tr>
+            <th>Period</th>
+            {% for name in days %}<th>{{ name }}</th>{% endfor %}
+          </tr>
+        </thead>
+        <tbody>
+          {% for period in periods %}
+            <tr>
+              <th>
+                {{ period.label }}
+                <span class="period-time">{{ period.start_time|t }}–{{ period.end_time|t }}</span>
+              </th>
+              {% if period.is_break %}
+                <td class="is-break" colspan="{{ days|length }}">{{ period.kind.value|title }}</td>
+              {% else %}
+                {% for weekday in range(days|length) %}
+                  {% set entry = week[weekday][period.id] if week and week[weekday] else None %}
+                  <td>
+                    {% if entry %}
+                      <span class="slot">{{ entry.section.label if entry.section else "" }}</span>
+                      <span class="slot">{{ entry.subject.name if entry.subject else "" }}</span>
+                      <span class="slot-meta">{{ entry.room or "Room not set" }}</span>
+                    {% else %}
+                      <span class="slot--empty">Free</span>
+                    {% endif %}
+                  </td>
+                {% endfor %}
+              {% endif %}
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    <div class="card__foot">
+      <div class="cluster small muted">
+        <span class="badge badge--neutral">Free</span>
+        <span>means no class is scheduled for you in that period.</span>
+      </div>
+    </div>
+  </section>
+{% endif %}
+{% endblock %}

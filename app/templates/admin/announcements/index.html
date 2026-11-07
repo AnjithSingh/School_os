@@ -1,0 +1,83 @@
+{% extends "layouts/app.html" %}
+{% from "macros/ui.html" import page_head, field, status_badge, pagination, empty %}
+{% from "macros/icons.html" import icon %}
+
+{% block title %}Announcements · {{ school.name }}{% endblock %}
+
+{% block content %}
+{{ page_head("Announcements", "Publish notices to the whole school or a single class. Every announcement is written to the audit log.") }}
+
+<div class="grid grid--sidebar">
+  <section class="card card--flush">
+    <div class="card__head">
+      <div><h2>Published notices</h2><div class="sub">{{ page.total }} this year</div></div>
+    </div>
+    {% if page.items %}
+      <div class="card__body">
+        <ul class="list">
+          {% for item in page.items %}
+            <li class="list__item">
+              <div class="list__body">
+                <div class="cluster" style="gap:.35rem">
+                  {% if item.is_pinned %}<span class="badge badge--accent">Pinned</span>{% endif %}
+                  <span class="badge badge--info">{{ item.category.value|replace("_", " ")|title }}</span>
+                  <span class="badge">{{ item.audience_scope.value|title }}</span>
+                  {{ status_badge(item.status) }}
+                </div>
+                <div class="list__title mt-1">{{ item.title }}</div>
+                <div class="list__meta">
+                  {{ item.publish_at|dt if item.publish_at else item.created_at|dt }}
+                  {% if item.author %} · {{ item.author.full_name }}{% endif %}
+                  {% if item.school_class %} · {{ item.school_class.name }}{% endif %}
+                  {% if item.section %} · {{ item.section.label }}{% endif %}
+                </div>
+                <p class="small mt-1" style="white-space:pre-line">{{ item.body }}</p>
+                {% if item.attachment %}
+                  <a class="btn btn--quiet btn--sm mt-1" href="{{ url_for('files.serve', file_uuid=item.attachment.uuid) }}">{{ icon("download", 14) }} Attachment</a>
+                {% endif %}
+              </div>
+              {% if item.status.value != "ARCHIVED" %}
+                <form class="inline-form" method="post" action="{{ url_for('admin_announcements.archive', announcement_id=item.id) }}"
+                      data-confirm="Archive this announcement? It will stop appearing in portals.">
+                  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                  <button class="btn btn--quiet btn--sm" type="submit">Archive</button>
+                </form>
+              {% endif %}
+            </li>
+          {% endfor %}
+        </ul>
+      </div>
+      <div class="card__foot">{{ pagination(page) }}</div>
+    {% else %}
+      {{ empty("No announcements yet", "Use the form alongside to publish the first notice.", "megaphone") }}
+    {% endif %}
+  </section>
+
+  <section class="card card--pad">
+    <h2 class="mb-1">New announcement</h2>
+    <p class="muted small">Leave publish time blank to send immediately.</p>
+    <form method="post" enctype="multipart/form-data" novalidate>
+      {{ form.hidden_tag() }}
+      <div class="stack">
+        {{ field(form.title, placeholder="e.g. Sports day on Friday") }}
+        {{ field(form.body) }}
+        <div class="form-grid">
+          {{ field(form.category) }}
+          {{ field(form.audience_scope) }}
+        </div>
+        <div class="form-grid">
+          {{ field(form.school_class_id) }}
+          {{ field(form.section_id) }}
+        </div>
+        <div class="form-grid">
+          {{ field(form.publish_at) }}
+          {{ field(form.expires_at) }}
+        </div>
+        {{ field(form.attachment, hint="Optional PDF or image, up to 10 MB.") }}
+        <label class="check">{{ form.is_pinned() }} <span>{{ form.is_pinned.label.text }}</span></label>
+        <button class="btn btn--primary btn--block" type="submit">{{ icon("megaphone", 16) }} Publish announcement</button>
+      </div>
+    </form>
+  </section>
+</div>
+{% endblock %}

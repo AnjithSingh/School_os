@@ -1,0 +1,49 @@
+{% extends "layouts/app.html" %}
+{% from "macros/ui.html" import page_head, status_badge, empty %}
+{% from "macros/icons.html" import icon %}
+
+{% block title %}My report cards · {{ school.name }}{% endblock %}
+
+{% block content %}
+{% call page_head("My report cards", (current_session.name if current_session else "Current year") ~ " · each card is an immutable snapshot for one examination") %}
+  <a class="btn btn--ghost" href="{{ url_for('student.results') }}">{{ icon("award", 16) }} Results</a>
+{% endcall %}
+
+<section class="card card--flush">
+  <div class="card__head">
+    <div><h2>Published cards</h2><div class="sub">Download the signed PDF for each examination</div></div>
+  </div>
+  {% if cards %}
+    <div class="table-wrap">
+      <table class="table table--stack">
+        <thead><tr><th>Examination</th><th>Result</th><th>Card status</th><th class="num">Revision</th><th>Generated</th><th class="num"></th></tr></thead>
+        <tbody>
+          {% for row in cards %}
+            {% set exam = row.exam %}
+            {% set card = row.card %}
+            <tr>
+              <td data-label="Examination">
+                <span class="row-title">{{ exam.name }}</span>
+                <span class="sub">{{ exam.exam_type.name if exam.exam_type else "" }}{% if exam.result_date %} · {{ exam.result_date|d }}{% endif %}</span>
+              </td>
+              <td data-label="Result" class="small">{{ card.status.value|title }}{% if card.revision %} · revision {{ card.revision }}{% endif %}</td>
+              <td data-label="Card status">{{ status_badge(card.status) }}</td>
+              <td data-label="Revision" class="num">{{ card.revision }}</td>
+              <td data-label="Generated" class="small">{{ card.created_at|dt }}</td>
+              <td data-label="" class="num">
+                {% if card.pdf_file %}
+                  <a class="btn btn--primary btn--sm" href="{{ url_for('student.report_card_pdf', card_id=card.id) }}">{{ icon("download", 14) }} Download PDF</a>
+                {% else %}
+                  <span class="muted small">PDF not available</span>
+                {% endif %}
+              </td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  {% else %}
+    {{ empty("No report cards", "Report cards become available after results are published and the school generates them.", "file-text") }}
+  {% endif %}
+</section>
+{% endblock %}

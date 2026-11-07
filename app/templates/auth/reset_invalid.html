@@ -1,0 +1,11 @@
+{% extends "layouts/auth.html" %}
+
+{% block title %}Reset link expired · School OS{% endblock %}
+
+{% block content %}
+<div class="card">
+  <h2>This reset link has expired</h2>
+  <p class="sub">Reset links are single-use and time-limited. Ask the school office to issue a new one.</p>
+  <a class="btn btn--primary btn--block" href="{{ url_for('auth.login') }}">Back to sign in</a>
+</div>
+{% endblock %}

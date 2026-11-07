@@ -1,0 +1,42 @@
+{% extends "layouts/app.html" %}
+{% from "macros/ui.html" import page_head, empty, badge %}
+{% from "macros/icons.html" import icon %}
+
+{% block title %}My classes · {{ school.name }}{% endblock %}
+
+{% block content %}
+{{ page_head("My classes", "Every section you are allocated to this year, with the subjects you teach and the class-teacher responsibility.") }}
+
+{% if roster %}
+  <div class="grid grid--3">
+    {% for row in roster %}
+      <section class="card card--pad">
+        <div class="between mb-1">
+          <div>
+            <h2 class="mb-0">{{ row.section.label }}</h2>
+            <div class="small muted">{{ row.count }} student{{ "" if row.count == 1 else "s" }}</div>
+          </div>
+          {% if row.is_class_teacher %}{{ badge("Class teacher", "accent") }}{% endif %}
+        </div>
+
+        {% if row.subjects %}
+          <div class="cluster mb-2">
+            {% for allocation in row.subjects %}
+              <span class="pill">{{ allocation.subject.name if allocation.subject else "Subject" }}</span>
+            {% endfor %}
+          </div>
+        {% else %}
+          <p class="small muted">No subject allocation recorded for you in this section.</p>
+        {% endif %}
+
+        <div class="between mt-2">
+          <span class="small muted">{{ row.subjects|length }} subject{{ "" if row.subjects|length == 1 else "s" }}</span>
+          <a class="btn btn--ghost btn--sm" href="{{ url_for('teacher.class_detail', section_id=row.section.id) }}">Roster & attendance</a>
+        </div>
+      </section>
+    {% endfor %}
+  </div>
+{% else %}
+  {{ empty("No classes assigned", "Subject allocations for this academic year are set by the school office. Once allocated, your sections appear here.", "users", url_for('teacher.dashboard'), "Back to dashboard") }}
+{% endif %}
+{% endblock %}

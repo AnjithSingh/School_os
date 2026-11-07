@@ -1,0 +1,103 @@
+{% extends "layouts/app.html" %}
+{% from "macros/ui.html" import page_head, badge %}
+{% from "macros/icons.html" import icon %}
+
+{% block title %}Your account · {{ school.name }}{% endblock %}
+
+{% block content %}
+{{ page_head("Your account", "Sign-in details and the records linked to your account.") }}
+
+<div class="grid grid--sidebar">
+  <div class="stack">
+    <section class="card card--pad">
+      <div class="cluster" style="align-items:flex-start">
+        <span class="avatar avatar--xl">{{ current_user.full_name|initials }}</span>
+        <div style="flex:1">
+          <h2 class="mb-0">{{ current_user.full_name }}</h2>
+          <div class="muted small">{{ current_user.username }}{% if current_user.email %} · {{ current_user.email }}{% endif %}</div>
+          <div class="cluster mt-1">
+            <span class="badge badge--info">{{ current_user.role.label }}</span>
+            {% if current_user.is_active %}<span class="badge badge--success">Active</span>{% else %}<span class="badge badge--neutral">Inactive</span>{% endif %}
+            {% if current_user.must_change_password %}<span class="badge badge--warning">Temporary password</span>{% endif %}
+          </div>
+        </div>
+      </div>
+      <hr>
+      <dl class="dl">
+        <dt>Username</dt><dd class="mono">{{ current_user.username }}</dd>
+        <dt>Email</dt><dd>{{ current_user.email or "Not recorded" }}</dd>
+        <dt>Phone</dt><dd>{{ current_user.phone or "Not recorded" }}</dd>
+        <dt>Last sign-in</dt><dd>{{ current_user.last_login_at|dt if current_user.last_login_at else "This is your first session" }}</dd>
+        <dt>Account created</dt><dd>{{ current_user.created_at|d }}</dd>
+      </dl>
+    </section>
+
+    {% if current_user.guardian %}
+      <section class="card card--pad">
+        <h2 class="mb-2">Guardian record</h2>
+        <dl class="dl">
+          <dt>Name</dt><dd>{{ current_user.guardian.full_name }}</dd>
+          <dt>Phone</dt><dd>{{ current_user.guardian.phone or "—" }}</dd>
+          <dt>Email</dt><dd>{{ current_user.guardian.email or "—" }}</dd>
+          <dt>Occupation</dt><dd>{{ current_user.guardian.occupation or "—" }}</dd>
+        </dl>
+        <a class="btn btn--ghost btn--block mt-2" href="{{ url_for('parent.children') }}">Open my children</a>
+      </section>
+    {% endif %}
+
+    {% if current_user.student %}
+      <section class="card card--pad">
+        <h2 class="mb-2">Student record</h2>
+        <dl class="dl">
+          <dt>Name</dt><dd>{{ current_user.student.full_name }}</dd>
+          <dt>Admission number</dt><dd class="mono">{{ current_user.student.admission_no }}</dd>
+          <dt>Status</dt><dd>{{ current_user.student.status.value|title }}</dd>
+        </dl>
+        <a class="btn btn--ghost btn--block mt-2" href="{{ url_for('student.profile') }}">Open my profile</a>
+      </section>
+    {% endif %}
+
+    {% if current_user.staff %}
+      <section class="card card--pad">
+        <h2 class="mb-2">Staff record</h2>
+        <dl class="dl">
+          <dt>Employee code</dt><dd class="mono">{{ current_user.staff.employee_code }}</dd>
+          <dt>Designation</dt><dd>{{ current_user.staff.designation or "—" }}</dd>
+          <dt>Joined</dt><dd>{{ current_user.staff.joining_date|d if current_user.staff.joining_date else "—" }}</dd>
+        </dl>
+        <a class="btn btn--ghost btn--block mt-2" href="{{ url_for('teacher.profile') }}">Open my profile</a>
+      </section>
+    {% endif %}
+  </div>
+
+  <div class="stack">
+    <section class="card card--pad">
+      <h2 class="mb-2">Security</h2>
+      <p class="muted small">Choose a password you have not used on another site.</p>
+      <a class="btn btn--primary btn--block" href="{{ url_for('auth.change_password') }}">{{ icon("key", 16) }} Change password</a>
+      <a class="btn btn--ghost btn--block mt-1" href="{{ url_for('auth.notifications') }}">View notifications</a>
+    </section>
+
+    <section class="card card--pad">
+      <h2 class="mb-2">Go to</h2>
+      <div class="stack">
+        <a class="btn btn--ghost btn--block" href="{{ url_for(current_user.dashboard_endpoint) }}">My dashboard</a>
+        {% if current_user.role.value == "PARENT" %}
+          <a class="btn btn--ghost btn--block" href="{{ url_for('parent.profile') }}">Family profile</a>
+        {% elif current_user.role.value == "STUDENT" %}
+          <a class="btn btn--ghost btn--block" href="{{ url_for('student.profile') }}">My profile</a>
+        {% elif current_user.role.value == "TEACHER" %}
+          <a class="btn btn--ghost btn--block" href="{{ url_for('teacher.profile') }}">Teaching profile</a>
+        {% else %}
+          <a class="btn btn--ghost btn--block" href="{{ url_for('admin.settings') }}">School settings</a>
+        {% endif %}
+      </div>
+    </section>
+
+    <section class="card card--pad">
+      <h2 class="mb-1">Need help?</h2>
+      <p class="muted small mb-0">Ask the school office to reset a forgotten password or to correct your contact details. Changes are audited.</p>
+    </section>
+  </div>
+</div>
+{% endblock %}

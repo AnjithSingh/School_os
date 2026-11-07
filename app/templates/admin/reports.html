@@ -1,0 +1,97 @@
+{% extends "layouts/app.html" %}
+{% from "macros/ui.html" import page_head, progress_bar, empty %}
+{% from "macros/icons.html" import icon %}
+
+{% block title %}Reports · {{ school.name }}{% endblock %}
+
+{% block scripts %}
+  <script src="{{ url_for('static', filename='js/vendor/chart.umd.min.js') }}" defer></script>
+{% endblock %}
+
+{% block content %}
+{{ page_head("School reports", "Enrolment, attendance and fee collection for " ~ (session.name if session else "the current year") ~ ".") }}
+
+<div class="grid grid--3 mb-2">
+  <section class="card card--pad">
+    <div class="stat__label">Total billed</div>
+    <div class="stat__value">{{ finance.get("billed", 0)|money }}</div>
+    <div class="stat__hint">Across every fee head this year</div>
+  </section>
+  <section class="card card--pad">
+    <div class="stat__label">Collected</div>
+    <div class="stat__value text-success">{{ finance.get("paid", 0)|money }}</div>
+    <div class="stat__hint">{{ finance.get("collection_rate", 0)|percent }} of billing</div>
+  </section>
+  <section class="card card--pad">
+    <div class="stat__label">Outstanding</div>
+    <div class="stat__value text-danger">{{ finance.get("outstanding", 0)|money }}</div>
+    <div class="stat__hint">Including overdue balances</div>
+  </section>
+</div>
+
+<div class="grid grid--2 mb-2">
+  <section class="card">
+    <div class="card__head"><h2>Students by class</h2><span class="sub">Active enrolments</span></div>
+    <div class="card__body">
+      {% if strength %}
+        <div class="chart-box"><canvas data-chart-src="{{ url_for('api.strength_series') }}" data-chart-type="bar" role="img" aria-label="Bar chart of students per class"></canvas></div>
+        <table class="table table--compact mt-2">
+          <thead><tr><th>Class</th><th class="num">Students</th></tr></thead>
+          <tbody>
+            {% for row in strength %}
+              <tr><td>{{ row.class.name }}</td><td class="num">{{ row.count }}</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      {% else %}
+        {{ empty("No enrolments yet", "Admit students to see class strength.", "users") }}
+      {% endif %}
+    </div>
+  </section>
+
+  <section class="card">
+    <div class="card__head"><h2>Attendance, last 7 days</h2><span class="sub">Marked records only</span></div>
+    <div class="card__body">
+      <div class="chart-box mb-2"><canvas data-chart-src="{{ url_for('api.attendance_series', days=7) }}" data-chart-type="line" role="img" aria-label="Line chart of daily attendance percentage"></canvas></div>
+      <table class="table table--compact">
+        <thead><tr><th>Day</th><th class="num">Records</th><th class="num">Present</th></tr></thead>
+        <tbody>
+          {% for row in week %}
+            <tr>
+              <td>{{ row.label }}</td>
+              <td class="num">{{ row.marked }}</td>
+              <td class="num">{{ row.percentage|percent }}</td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </section>
+</div>
+
+<div class="grid grid--sidebar">
+  <section class="card">
+    <div class="card__head"><h2>Fee collection</h2><span class="sub">Collected against outstanding</span></div>
+    <div class="card__body">
+      {% if finance.get("billed") %}
+        <div class="chart-box"><canvas data-chart-src="{{ url_for('api.finance_summary') }}" data-chart-type="doughnut" role="img" aria-label="Doughnut chart of collected and outstanding fees"></canvas></div>
+      {% else %}
+        {{ empty("No fees billed yet", "Generate fee structures to see collection progress.", "credit-card") }}
+      {% endif %}
+    </div>
+  </section>
+
+  <section class="card card--pad">
+    <h2 class="mb-2">Collection progress</h2>
+    <div class="between mb-1"><span class="muted small">Target</span><span class="num">{{ finance.get("billed", 0)|money }}</span></div>
+    {{ progress_bar(finance.get("collection_rate", 0), "success") }}
+    <div class="tiny muted mt-1">{{ finance.get("collection_rate", 0)|percent }} collected</div>
+    <hr>
+    <div class="btn-row">
+      <a class="btn btn--ghost btn--sm" href="{{ url_for('admin_fees.payments') }}">Payment history</a>
+      <a class="btn btn--ghost btn--sm" href="{{ url_for('admin_attendance.report') }}">Attendance report</a>
+      <a class="btn btn--ghost btn--sm" href="{{ url_for('admin_exams.progress') }}">Results progress</a>
+    </div>
+  </section>
+</div>
+{% endblock %}

@@ -1,0 +1,113 @@
+{% extends "layouts/app.html" %}
+{% from "macros/ui.html" import page_head, status_badge, empty, progress_bar %}
+{% from "macros/icons.html" import icon %}
+
+{% block title %}{{ homework.title }} · {{ school.name }}{% endblock %}
+
+{% block content %}
+<div class="breadcrumb">
+  <a href="{{ url_for('teacher.homework') }}">Homework</a>
+  <span>{{ homework.title }}</span>
+</div>
+
+{% call page_head(homework.title,
+   (homework.subject.name if homework.subject else "") ~ " · " ~ (homework.section.label if homework.section else "") ~
+   " · due " ~ (homework.due_at|dt if homework.due_at else "no due date")) %}
+  {{ status_badge(homework.status) }}
+  {% if homework.attachment %}
+    <a class="btn btn--ghost" href="{{ url_for('files.serve', file_uuid=homework.attachment.uuid) }}">{{ icon("download", 16) }} Attachment</a>
+  {% endif %}
+  <a class="btn btn--ghost" href="{{ url_for('teacher.homework') }}">{{ icon("arrow-left", 16) }} All homework</a>
+{% endcall %}
+
+<div class="grid grid--sidebar">
+  <section class="card card--flush">
+    <div class="card__head">
+      <div><h2>Submissions</h2><div class="sub">{{ submissions|length }} of {{ enrollments|length }} students have submitted</div></div>
+    </div>
+    {% if enrollments %}
+      <div class="table-wrap">
+        <table class="table table--stack">
+          <thead><tr><th class="num">Roll</th><th>Student</th><th>Submitted</th><th>Status</th><th class="num">Marks</th><th class="num"></th></tr></thead>
+          <tbody>
+            {% for enrollment in enrollments %}
+              {% set submission = submissions.get(enrollment.student_id) %}
+              <tr>
+                <td data-label="Roll" class="num">{{ enrollment.roll_no or "—" }}</td>
+                <td data-label="Student">
+                  <span class="row-title">{{ enrollment.student.full_name if enrollment.student else "—" }}</span>
+                  <span class="sub">{{ enrollment.student.admission_no if enrollment.student else "" }}</span>
+                </td>
+                <td data-label="Submitted" class="small">{{ submission.submitted_at|dt if submission and submission.submitted_at else "Not submitted" }}</td>
+                <td data-label="Status">{{ status_badge(submission.status) if submission else status_badge("PENDING") }}</td>
+                <td data-label="Marks" class="num">
+                  {% if submission and submission.marks is not none %}
+                    <strong>{{ submission.marks }}</strong>{% if homework.max_marks %} / {{ homework.max_marks }}{% endif %}
+                  {% else %}<span class="muted">—</span>{% endif %}
+                </td>
+                <td data-label="" class="num">
+                  <div class="cluster" style="justify-content:flex-end">
+                    {% if submission and submission.file %}
+                      <a class="btn btn--quiet btn--sm" href="{{ url_for('files.serve', file_uuid=submission.file.uuid) }}">File</a>
+                    {% endif %}
+                    <button class="btn btn--quiet btn--sm" type="button" data-toggle-target="#review-{{ enrollment.student_id }}" aria-expanded="false">Review</button>
+                  </div>
+                </td>
+              </tr>
+              <tr id="review-{{ enrollment.student_id }}" hidden>
+                <td colspan="6">
+                  <form method="post" action="{{ url_for('teacher.review_submission', homework_id=homework.id, student_id=enrollment.student_id) }}" class="review-form">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <div class="form-grid">
+                      <div class="field">
+                        <label for="marks-{{ enrollment.student_id }}">Marks{% if homework.max_marks %} (out of {{ homework.max_marks }}){% endif %}</label>
+                        <input class="input" id="marks-{{ enrollment.student_id }}" name="marks" type="number" min="0" max="100"
+                               value="{{ submission.marks if submission and submission.marks is not none else '' }}">
+                      </div>
+                      <div class="field">
+                        <label for="remarks-{{ enrollment.student_id }}">Remarks</label>
+                        <input class="input" id="remarks-{{ enrollment.student_id }}" name="remarks"
+                               value="{{ submission.remarks if submission and submission.remarks else '' }}" placeholder="Feedback for the student">
+                      </div>
+                    </div>
+                    <div class="form-actions">
+                      <button class="btn btn--primary btn--sm" type="submit">Save review</button>
+                    </div>
+                  </form>
+                </td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    {% else %}
+      {{ empty("No students", "This section has no active enrolment.", "users") }}
+    {% endif %}
+  </section>
+
+  <div class="stack">
+    <section class="card card--pad">
+      <h2 class="mb-2">Instructions</h2>
+      <p class="small" style="white-space:pre-line">{{ homework.description or "No instructions were provided." }}</p>
+      <hr>
+      <dl class="dl">
+        <dt>Subject</dt><dd>{{ homework.subject.name if homework.subject else "—" }}</dd>
+        <dt>Section</dt><dd>{{ homework.section.label if homework.section else "—" }}</dd>
+        <dt>Assigned</dt><dd>{{ homework.assigned_on|d }}</dd>
+        <dt>Due</dt><dd>{{ homework.due_at|dt if homework.due_at else "—" }}</dd>
+        <dt>Maximum marks</dt><dd>{{ homework.max_marks or "Not graded" }}</dd>
+        <dt>Status</dt><dd>{{ status_badge(homework.status) }}</dd>
+      </dl>
+    </section>
+
+    <section class="card card--pad">
+      <h2 class="mb-1">Completion</h2>
+      {% set total = enrollments|length %}
+      {% set submitted = submissions|length %}
+      <div class="between mb-1"><span class="muted small">Submitted</span><span class="num">{{ submitted }} / {{ total }}</span></div>
+      {{ progress_bar((submitted / total * 100) if total else 0, "success" if total and submitted == total else "") }}
+      <div class="tiny muted mt-1">{{ ((submitted / total * 100) if total else 0)|percent }} of the class has submitted.</div>
+    </section>
+  </div>
+</div>
+{% endblock %}

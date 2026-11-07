@@ -1,0 +1,87 @@
+{% extends "layouts/app.html" %}
+{% from "macros/ui.html" import page_head, empty %}
+{% from "macros/icons.html" import icon %}
+
+{% block title %}Attendance register · {{ school.name }}{% endblock %}
+
+{% block content %}
+{{ page_head("Monthly register", register.first|d("long") ~ " to " ~ register.last|d("long") if register else "No section selected") }}
+
+{% set months = ["", "January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"] %}
+
+<form class="filter-bar mb-2" method="get">
+  <div class="field">
+    <label for="section">Section</label>
+    <select class="select" id="section" name="section_id">
+      {% for item in sections %}
+        <option value="{{ item.id }}" {{ 'selected' if section and item.id == section.id }}>{{ item.label }}</option>
+      {% endfor %}
+    </select>
+  </div>
+  <div class="field">
+    <label for="month">Month</label>
+    <select class="select" id="month" name="month">
+      {% for number in range(1, 13) %}
+        <option value="{{ number }}" {{ 'selected' if month == number }}>{{ months[number] }}</option>
+      {% endfor %}
+    </select>
+  </div>
+  <div class="field">
+    <label for="year">Year</label>
+    <input class="input" id="year" name="year" type="number" min="2000" max="2100" value="{{ year }}" style="width:110px">
+  </div>
+  <button class="btn btn--ghost" type="submit">Show register</button>
+  <button class="btn btn--quiet" type="button" data-print>{{ icon("printer", 16) }} Print</button>
+</form>
+
+{% if register %}
+  <section class="card card--flush">
+    <div class="card__head">
+      <h2>{{ section.label }} · {{ months[month] }} {{ year }}</h2>
+      <span class="sub">P present · A absent · L late · H half day · E excused</span>
+    </div>
+    <div class="table-wrap">
+      <table class="table table--bordered table--compact" style="font-size:.72rem">
+        <thead>
+          <tr>
+            <th style="position:sticky;left:0;background:#fafbfc;z-index:2;min-width:180px">Student</th>
+            {% for day in register.days %}
+              <th class="num" style="min-width:26px">{{ "%02d"|format(day.day) }}</th>
+            {% endfor %}
+            <th class="num">Present</th>
+            <th class="num">%</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for row in register.matrix %}
+            <tr>
+              <td style="position:sticky;left:0;background:#fff;z-index:1">
+                {{ row.enrollment.student.full_name }}
+                <span class="sub">Roll {{ row.enrollment.roll_no or "—" }}</span>
+              </td>
+              {% for cell in row.cells %}
+                <td class="num">
+                  {% if cell %}
+                    {% set tone = {"PRESENT": "success", "ABSENT": "danger", "LATE": "warning", "HALF_DAY": "info", "EXCUSED": "neutral"}[cell.status.value] %}
+                    <span class="badge badge--{{ tone }}" title="{{ cell.date|d }} · {{ cell.status.label }}" style="padding:.05rem .3rem;font-size:.62rem">{{ cell.status.value[0] }}</span>
+                  {% else %}
+                    <span class="muted">·</span>
+                  {% endif %}
+                </td>
+              {% endfor %}
+              <td class="num">{{ row.present|round(1) }} / {{ row.marked }}</td>
+              <td class="num">{{ row.percentage|percent if row.percentage is not none else "—" }}</td>
+            </tr>
+          {% else %}
+            <tr><td colspan="{{ register.days|length + 3 }}" class="muted">No active students in this section.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </section>
+{% else %}
+  <section class="card card--pad">
+    {{ empty("Choose a section", "Sections appear once an academic year has been built.", "calendar") }}
+  </section>
+{% endif %}
+{% endblock %}

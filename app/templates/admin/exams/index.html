@@ -1,0 +1,73 @@
+{% extends "layouts/app.html" %}
+{% from "macros/ui.html" import page_head, field, status_badge, empty %}
+{% from "macros/icons.html" import icon %}
+
+{% block title %}Examinations · {{ school.name }}{% endblock %}
+
+{% block content %}
+{{ page_head("Examinations", "Plan assessments, open marks entry and publish results for " ~ (session.name if session else "the current year") ~ ".") }}
+
+<div class="grid grid--sidebar">
+  <section class="card card--flush">
+    <div class="card__head">
+      <div><h2>This year's examinations</h2><div class="sub">{{ exams|length }} scheduled or completed</div></div>
+    </div>
+    {% if exams %}
+      <div class="table-wrap">
+        <table class="table table--stack">
+          <thead><tr><th>Examination</th><th>Dates</th><th class="num">Subjects</th><th class="num">Classes</th><th>Status</th><th class="num"></th></tr></thead>
+          <tbody>
+            {% for exam in exams %}
+              <tr>
+                <td data-label="Examination">
+                  <a class="row-title" href="{{ url_for('admin_exams.detail', exam_id=exam.id) }}">{{ exam.name }}</a>
+                  <span class="sub">{{ exam.exam_type.name if exam.exam_type else "Uncategorised" }}</span>
+                </td>
+                <td data-label="Dates" class="small">
+                  {% if exam.start_date %}{{ exam.start_date|d }}{% if exam.end_date %} – {{ exam.end_date|d }}{% endif %}{% else %}<span class="muted">Not scheduled</span>{% endif %}
+                </td>
+                <td data-label="Subjects" class="num">{{ exam.subjects|length }}</td>
+                <td data-label="Classes" class="num">{{ exam.classes|length }}</td>
+                <td data-label="Status">{{ status_badge(exam.status) }}</td>
+                <td data-label="" class="num"><a class="btn btn--quiet btn--sm" href="{{ url_for('admin_exams.detail', exam_id=exam.id) }}">Open</a></td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    {% else %}
+      {{ empty("No examinations yet", "Create the first assessment for this academic year using the form alongside.", "clipboard") }}
+    {% endif %}
+  </section>
+
+  <section class="card card--pad">
+    <h2 class="mb-1">New examination</h2>
+    <p class="muted small">Subjects and marks sheets are created after the examination exists.</p>
+    <form method="post" action="{{ url_for('admin_exams.create') }}" novalidate>
+      {{ form.hidden_tag() }}
+      <div class="stack">
+        {{ field(form.exam_type_id) }}
+        {{ field(form.name, placeholder="e.g. First Term Examination") }}
+        <div class="form-grid">
+          {{ field(form.start_date) }}
+          {{ field(form.end_date) }}
+        </div>
+        {{ field(form.result_date) }}
+        {{ field(form.grading_scale_id, hint="Leave as the default scale unless the school has a special scheme.") }}
+        <div class="field">
+          <label for="class_ids">Applicable classes</label>
+          <select class="select" id="class_ids" name="class_ids" multiple size="5">
+            {% for value, label in form.class_ids.choices %}
+              <option value="{{ value }}" {{ 'selected' if form.class_ids.data and value in form.class_ids.data }}>{{ label }}</option>
+            {% endfor %}
+          </select>
+          <div class="field__hint">Hold Ctrl (Windows) or Cmd (Mac) to choose more than one.</div>
+          {% for error in form.class_ids.errors %}<div class="field__error">{{ error }}</div>{% endfor %}
+        </div>
+        {{ field(form.instructions) }}
+        <button class="btn btn--primary btn--block" type="submit">{{ icon("plus", 16) }} Create examination</button>
+      </div>
+    </form>
+  </section>
+</div>
+{% endblock %}

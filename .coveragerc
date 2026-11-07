@@ -1,0 +1,17 @@
+[run]
+source = app
+branch = True
+omit =
+    app/__init__.py
+    app/cli.py
+    */__pycache__/*
+    */migrations/*
+
+[report]
+show_missing = True
+skip_covered = False
+exclude_lines =
+    pragma: no cover
+    if __name__ == .__main__.:
+    raise NotImplementedError
+    \.\.\.

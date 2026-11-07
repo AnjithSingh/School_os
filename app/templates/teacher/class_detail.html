@@ -1,0 +1,77 @@
+{% extends "layouts/app.html" %}
+{% from "macros/ui.html" import page_head, status_badge, empty %}
+{% from "macros/icons.html" import icon %}
+
+{% block title %}{{ section.label }} · {{ school.name }}{% endblock %}
+
+{% block content %}
+<div class="breadcrumb">
+  <a href="{{ url_for('teacher.classes') }}">My classes</a>
+  <span>{{ section.label }}</span>
+</div>
+
+{% call page_head(section.label, (session.name if session else "Current year") ~ " · " ~ enrollments|length ~ " active students" ~ (" · room " ~ section.room if section.room else "")) %}
+  <a class="btn btn--primary" href="{{ url_for('teacher.attendance', section_id=section.id) }}">{{ icon("check", 16) }} Mark attendance</a>
+  <a class="btn btn--ghost" href="{{ url_for('teacher.homework') }}">{{ icon("file-text", 16) }} Homework</a>
+{% endcall %}
+
+<div class="grid grid--sidebar">
+  <section class="card card--flush">
+    <div class="card__head">
+      <div><h2>Class roster</h2><div class="sub">{{ enrollments|length }} students enrolled</div></div>
+    </div>
+    {% if enrollments %}
+      <div class="table-wrap">
+        <table class="table table--stack">
+          <thead><tr><th class="num">Roll</th><th>Student</th><th>Admission no.</th><th>Joined</th><th>Status</th></tr></thead>
+          <tbody>
+            {% for enrollment in enrollments %}
+              <tr>
+                <td data-label="Roll" class="num">{{ enrollment.roll_no or "—" }}</td>
+                <td data-label="Student">
+                  <span class="row-title">{{ enrollment.student.full_name if enrollment.student else "—" }}</span>
+                  {% if enrollment.student and enrollment.student.age %}<span class="sub">{{ enrollment.student.age }} years</span>{% endif %}
+                </td>
+                <td data-label="Admission no." class="mono small">{{ enrollment.student.admission_no if enrollment.student else "—" }}</td>
+                <td data-label="Joined" class="small">{{ enrollment.admitted_on|d if enrollment.admitted_on else "—" }}</td>
+                <td data-label="Status">{{ status_badge(enrollment.status) }}</td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    {% else %}
+      {{ empty("No students enrolled", "The school office has not enrolled any students in this section yet.", "users") }}
+    {% endif %}
+  </section>
+
+  <div class="stack">
+    <section class="card card--pad">
+      <h2 class="mb-2">Subjects you teach here</h2>
+      {% if subjects %}
+        <div class="stack">
+          {% for allocation in subjects %}
+            <div class="between">
+              <span class="row-title">{{ allocation.subject.name if allocation.subject else "Subject" }}</span>
+              <span class="small muted">{{ allocation.periods_per_week }} periods/week</span>
+            </div>
+          {% endfor %}
+        </div>
+      {% else %}
+        <p class="small muted mb-0">No subject allocation is recorded for you in this section.</p>
+      {% endif %}
+    </section>
+
+    <section class="card card--pad">
+      <h2 class="mb-2">Class details</h2>
+      <dl class="dl">
+        <dt>Class</dt><dd>{{ section.school_class.name if section.school_class else "—" }}</dd>
+        <dt>Section</dt><dd>{{ section.name }}</dd>
+        <dt>Room</dt><dd>{{ section.room or "Not assigned" }}</dd>
+        <dt>Capacity</dt><dd>{{ enrollments|length }} / {{ section.capacity }}</dd>
+        <dt>Class teacher</dt><dd>{{ section.class_teacher.full_name if section.class_teacher else "Not assigned" }}</dd>
+      </dl>
+    </section>
+  </div>
+</div>
+{% endblock %}

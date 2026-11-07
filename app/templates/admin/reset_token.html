@@ -1,0 +1,22 @@
+{% extends "layouts/app.html" %}
+{% from "macros/ui.html" import page_head %}
+{% from "macros/icons.html" import icon %}
+
+{% block title %}Password reset link · {{ school.name }}{% endblock %}
+
+{% block content %}
+{{ page_head("Password reset link", "Copy this now — it is shown once and cannot be retrieved later.") }}
+
+<section class="card card--pad content--narrow" style="max-width:720px">
+  <p class="small muted">For <strong>{{ user.full_name }}</strong> ({{ user.username }}). The link expires in one hour and can be used once.</p>
+  <label class="field__label" for="reset-link">Reset link</label>
+  <input class="input mono" id="reset-link" value="{{ url_for('auth.reset_password', token=token, _external=True) }}" readonly>
+  <div class="btn-row mt-2">
+    <button class="btn btn--ghost" type="button" data-copy="#reset-link">Copy link</button>
+    <a class="btn btn--primary" href="{{ url_for('admin.users') }}">Back to users</a>
+  </div>
+  <div class="notice mt-2">
+    <strong>Send it securely.</strong> Hand the link to the staff member in person, or send it to their school email address. Anyone with the link can set the password.
+  </div>
+</section>
+{% endblock %}

@@ -1,0 +1,115 @@
+{% extends "layouts/app.html" %}
+{% from "macros/ui.html" import page_head, status_badge, badge %}
+{% from "macros/icons.html" import icon %}
+
+{% block title %}My profile · {{ school.name }}{% endblock %}
+
+{% block content %}
+{% set guardian = current_user.guardian %}
+{% call page_head("My profile", "Your guardian record, the children linked to your account and the access you have been granted.") %}
+  <a class="btn btn--ghost" href="{{ url_for('auth.account_profile') }}">{{ icon("user", 16) }} Account settings</a>
+  <a class="btn btn--ghost" href="{{ url_for('parent.children') }}">{{ icon("users", 16) }} My children</a>
+{% endcall %}
+
+<div class="grid grid--sidebar">
+  <div class="stack">
+    <section class="card card--pad">
+      <div class="cluster" style="align-items:flex-start">
+        <span class="avatar avatar--xl">{{ (guardian.full_name if guardian else current_user.full_name)|initials }}</span>
+        <div style="flex:1">
+          <h2 class="mb-0">{{ guardian.full_name if guardian else current_user.full_name }}</h2>
+          <div class="muted small">{{ guardian.occupation or "Guardian" }}</div>
+          <div class="cluster mt-1">
+            {% if guardian and guardian.is_verified %}
+              {{ badge("Verified guardian", "success") }}
+            {% else %}
+              {{ badge("Verification pending", "warning") }}
+            {% endif %}
+            <span class="badge badge--neutral">{{ rows|length }} child{{ "" if rows|length == 1 else "ren" }} linked</span>
+          </div>
+        </div>
+      </div>
+      <hr>
+      <dl class="dl">
+        <dt>Full name</dt><dd>{{ guardian.full_name if guardian else current_user.full_name }}</dd>
+        <dt>Occupation</dt><dd>{{ guardian.occupation or "Not recorded" }}</dd>
+        <dt>Primary phone</dt><dd>{{ guardian.phone or current_user.phone or "Not recorded" }}</dd>
+        <dt>Alternate phone</dt><dd>{{ guardian.alt_phone or "Not recorded" }}</dd>
+        <dt>Email</dt><dd>{{ guardian.email or current_user.email or "Not recorded" }}</dd>
+        <dt>Address</dt><dd>{{ guardian.address or "Not recorded" }}</dd>
+      </dl>
+      <p class="small muted mt-2 mb-0">To correct these details, contact the school office. Guardian records are managed centrally and changes are audited.</p>
+    </section>
+
+    <section class="card card--flush">
+      <div class="card__head">
+        <div><h2>Linked children</h2><div class="sub">Access is granted per child by the school office</div></div>
+      </div>
+      {% if rows %}
+        <div class="card__body">
+          <ul class="list">
+            {% for student, link in rows %}
+              <li class="list__item">
+                <div class="list__body">
+                  <div class="list__title">
+                    {{ student.full_name }}
+                    {% if link.is_primary %}{{ badge("Primary", "accent") }}{% endif %}
+                  </div>
+                  <div class="list__meta">
+                    {{ student.admission_no }} · {{ link.relationship or "Guardian" }}
+                    {% if link.verified_at %} · verified {{ link.verified_at|dt }}{% endif %}
+                  </div>
+                  <div class="cluster mt-1">
+                    {{ status_badge(link.status) }}
+                    <span class="badge {{ 'badge--success' if link.can_view_academics else 'badge--neutral' }}">Results {{ "on" if link.can_view_academics else "off" }}</span>
+                    <span class="badge {{ 'badge--success' if link.can_view_attendance else 'badge--neutral' }}">Attendance {{ "on" if link.can_view_attendance else "off" }}</span>
+                    <span class="badge {{ 'badge--success' if link.can_pay_fees else 'badge--neutral' }}">Fees {{ "on" if link.can_pay_fees else "off" }}</span>
+                    <span class="badge {{ 'badge--success' if link.can_view_homework else 'badge--neutral' }}">Homework {{ "on" if link.can_view_homework else "off" }}</span>
+                    <span class="badge {{ 'badge--success' if link.can_apply_leave else 'badge--neutral' }}">Leave {{ "on" if link.can_apply_leave else "off" }}</span>
+                  </div>
+                </div>
+                <a class="btn btn--quiet btn--sm" href="{{ url_for('parent.child_timetable', student_id=student.id) }}">Open</a>
+              </li>
+            {% endfor %}
+          </ul>
+        </div>
+      {% else %}
+        <div class="card__body"><p class="muted small mb-0">No child is linked to your account yet. Ask the school office to verify the relationship.</p></div>
+      {% endif %}
+    </section>
+  </div>
+
+  <div class="stack">
+    <section class="card card--pad">
+      <h2 class="mb-1">Email notifications</h2>
+      {% set ns = namespace(enabled=false) %}
+      {% for student, link in rows %}{% if link.receive_notifications %}{% set ns.enabled = true %}{% endif %}{% endfor %}
+      <p class="small muted">When enabled, the school may email you about attendance, results, fees and announcements for your verified children.</p>
+      <div class="between mb-2">
+        <span class="small">Notifications are currently</span>
+        {{ badge("On", "success") if ns.enabled else badge("Off", "neutral") }}
+      </div>
+      {% if rows %}
+        <form method="post" action="{{ url_for('parent.notification_preference') }}">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <button class="btn btn--{{ 'ghost' if ns.enabled else 'primary' }} btn--block" type="submit">
+            {{ "Turn notifications off" if ns.enabled else "Turn notifications on" }}
+          </button>
+        </form>
+      {% else %}
+        <p class="small muted mb-0">Notification preferences become available once a child is linked to your account.</p>
+      {% endif %}
+    </section>
+
+    <section class="card card--pad">
+      <h2 class="mb-2">Shortcuts</h2>
+      <div class="stack">
+        <a class="btn btn--ghost btn--block" href="{{ url_for('parent.home') }}">{{ icon("grid", 16) }} Family dashboard</a>
+        <a class="btn btn--ghost btn--block" href="{{ url_for('parent.announcements') }}">{{ icon("megaphone", 16) }} Announcements</a>
+        <a class="btn btn--ghost btn--block" href="{{ url_for('parent.leave') }}">{{ icon("calendar", 16) }} Leave</a>
+        <a class="btn btn--ghost btn--block" href="{{ url_for('auth.change_password') }}">{{ icon("key", 16) }} Change password</a>
+      </div>
+    </section>
+  </div>
+</div>
+{% endblock %}

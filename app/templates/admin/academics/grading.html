@@ -1,0 +1,59 @@
+{% extends "layouts/app.html" %}
+{% from "macros/ui.html" import page_head, field %}
+{% from "macros/icons.html" import icon %}
+
+{% block title %}Grading scale · {{ school.name }}{% endblock %}
+
+{% block content %}
+<div class="breadcrumb">
+  <a href="{{ url_for('admin_academics.index') }}">Classes &amp; subjects</a>
+  <span>Grading</span>
+</div>
+{{ page_head("Grading scale", "Bands are applied lowest to highest by percentage. Results already published keep their original snapshot.") }}
+
+<form method="post" novalidate>
+  {{ form.hidden_tag() }}
+  <section class="card card--pad">
+    <div class="form-grid">
+      {{ field(form.name) }}
+    </div>
+
+    <div class="table-wrap mt-2">
+      <table class="table table--bordered">
+        <thead>
+          <tr><th style="min-width:90px">Grade</th><th>From %</th><th>To %</th><th>Grade points</th><th>Description</th></tr>
+        </thead>
+        <tbody>
+          {% for rule in form.rules %}
+            <tr>
+              <td>{{ rule.grade(class_="input") }}</td>
+              <td>{{ rule.min_percent(class_="input") }}</td>
+              <td>{{ rule.max_percent(class_="input") }}</td>
+              <td>{{ rule.grade_point(class_="input") }}</td>
+              <td>{{ rule.form.description(class_="input") }}</td>
+            </tr>
+            {% for error in rule.grade.errors + rule.min_percent.errors + rule.max_percent.errors %}
+              <tr><td colspan="5"><div class="field__error">{{ error }}</div></td></tr>
+            {% endfor %}
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    <p class="field__hint mt-1">The bands must not overlap. A student is assigned the first band whose range contains their percentage.</p>
+
+    <div class="form-actions">
+      {{ form.submit(class_="btn btn--primary") }}
+      <a class="btn btn--ghost" href="{{ url_for('admin_academics.index') }}">Back</a>
+    </div>
+  </section>
+
+  <section class="card card--pad mt-2">
+    <h2 class="mb-1">Currently stored bands</h2>
+    <div class="cluster">
+      {% for rule in scale.rules %}
+        <span class="pill">{{ rule.grade }} · {{ rule.min_percent|round(0)|int }}–{{ rule.max_percent|round(0)|int }}%{% if rule.grade_point is not none %} · {{ rule.grade_point }} pts{% endif %}</span>
+      {% endfor %}
+    </div>
+  </section>
+</form>
+{% endblock %}

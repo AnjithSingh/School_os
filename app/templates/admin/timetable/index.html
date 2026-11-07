@@ -1,0 +1,156 @@
+{% extends "layouts/app.html" %}
+{% from "macros/ui.html" import page_head, field, status_badge %}
+{% from "macros/icons.html" import icon %}
+
+{% block title %}Timetable · {{ school.name }}{% endblock %}
+
+{% block content %}
+{% call page_head("Timetable", "Build the weekly grid, then publish it. Conflicts are checked before publishing.") %}
+  {{ status_badge(timetable.status) }}
+  {% if timetable.status.value == "PUBLISHED" %}
+    <form class="inline-form" method="post" action="{{ url_for('admin_timetable.reopen') }}" data-confirm="Move the timetable back to draft?">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <button class="btn btn--ghost" type="submit">Reopen for editing</button>
+    </form>
+  {% else %}
+    <form class="inline-form" method="post" action="{{ url_for('admin_timetable.publish') }}">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <button class="btn btn--primary" type="submit">{{ icon("check", 16) }} Publish timetable</button>
+    </form>
+  {% endif %}
+{% endcall %}
+
+<div class="cluster mb-2">
+  {% for item in sections %}
+    <a class="pill {{ 'is-active' if section and item.id == section.id }}" href="{{ url_for('admin_timetable.index', section_id=item.id) }}">{{ item.label }}</a>
+  {% endfor %}
+</div>
+
+{% if issues %}
+  <section class="card card--pad mb-2" style="border-left:4px solid var(--warning)">
+    <h2 class="mb-1">Before publishing</h2>
+    <ul class="list small">
+      {% for issue in issues %}<li class="list__item"><span class="list__body">{{ issue }}</span></li>{% endfor %}
+    </ul>
+  </section>
+{% endif %}
+
+<div class="grid grid--sidebar">
+  <div class="stack">
+    <section class="card card--flush">
+      <div class="card__head"><h2>{{ section.label if section else "No section" }}</h2><span class="sub">{{ timetable.name }}</span></div>
+      <div class="tt-wrap">
+        <table class="tt">
+          <thead>
+            <tr>
+              <th>Period</th>
+              {% for name in ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"] %}
+                <th>{{ name }}</th>
+              {% endfor %}
+            </tr>
+          </thead>
+          <tbody>
+            {% for period in timetable.periods %}
+              <tr>
+                <th>
+                  {{ period.label }}
+                  <span class="period-time">{{ period.start_time|t }}–{{ period.end_time|t }}</span>
+                </th>
+                {% if period.is_break %}
+                  <td class="is-break" colspan="6">{{ period.kind.value|title }}</td>
+                {% else %}
+                  {% for weekday in range(6) %}
+                    {% set entry = week[weekday][period.id] if week and week[weekday] else None %}
+                    <td>
+                      {% if entry %}
+                        <span class="slot">{{ entry.subject.name }}</span>
+                        <span class="slot-meta">{{ entry.teacher.full_name if entry.teacher else "No teacher" }}</span>
+                        {% if entry.room %}<span class="slot-meta">{{ entry.room }}</span>{% endif %}
+                        {% if has_permission("timetable.manage") %}
+                          <form method="post" action="{{ url_for('admin_timetable.delete_cell', entry_id=entry.id) }}" data-confirm="Clear this slot?">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                            <button class="btn btn--quiet btn--sm" type="submit" style="padding:.05rem .3rem;font-size:.68rem">Clear</button>
+                          </form>
+                        {% endif %}
+                      {% else %}
+                        <span class="slot--empty">—</span>
+                      {% endif %}
+                    </td>
+                  {% endfor %}
+                {% endif %}
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section class="card card--pad">
+      <h2 class="mb-2">Dated changes</h2>
+      <p class="muted small">Record a substitution, cancellation or room change for a specific date. Only affects that day.</p>
+      <form method="post" action="{{ url_for('admin_timetable.add_change') }}" novalidate>
+        {{ change_form.hidden_tag() }}
+        <div class="form-grid">
+          {{ field(change_form.section_id) }}
+          {{ field(change_form.date) }}
+          {{ field(change_form.change_type) }}
+          {{ field(change_form.original_entry_id) }}
+          {{ field(change_form.substitute_teacher_id) }}
+          {{ field(change_form.new_room) }}
+          {{ field(change_form.reason, cls="span-2") }}
+        </div>
+        <div class="form-actions"><button class="btn btn--primary" type="submit">Publish change</button></div>
+      </form>
+    </section>
+  </div>
+
+  <div class="stack">
+    <section class="card card--pad">
+      <h2 class="mb-2">Add or replace a slot</h2>
+      <form method="post" action="{{ url_for('admin_timetable.save_cell') }}" novalidate>
+        {{ cell_form.hidden_tag() }}
+        <div class="stack">
+          {{ field(cell_form.section_id) }}
+          {{ field(cell_form.weekday) }}
+          {{ field(cell_form.period_id) }}
+          {{ field(cell_form.subject_id) }}
+          {{ field(cell_form.teacher_id) }}
+          {{ field(cell_form.room, placeholder="e.g. 601") }}
+          <button class="btn btn--primary btn--block" type="submit">Save slot</button>
+        </div>
+      </form>
+    </section>
+
+    <section class="card card--pad">
+      <h2 class="mb-2">Add a period</h2>
+      <form method="post" action="{{ url_for('admin_timetable.add_period') }}" novalidate>
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <div class="stack">
+          <div class="field"><label for="p-label">Label</label><input class="input" id="p-label" name="label" placeholder="P8" required></div>
+          <div class="form-grid">
+            <div class="field"><label for="p-start">Start</label><input class="input" id="p-start" name="start_time" type="time" required></div>
+            <div class="field"><label for="p-end">End</label><input class="input" id="p-end" name="end_time" type="time" required></div>
+          </div>
+          <div class="field"><label for="p-kind">Type</label>
+            <select class="select" id="p-kind" name="kind">
+              <option value="CLASS">Class</option>
+              <option value="BREAK">Break</option>
+              <option value="LUNCH">Lunch</option>
+              <option value="ASSEMBLY">Assembly</option>
+            </select>
+          </div>
+          <button class="btn btn--ghost btn--block" type="submit">Add period</button>
+        </div>
+      </form>
+    </section>
+
+    <section class="card card--pad">
+      <h2 class="mb-2">Legend</h2>
+      <div class="stack small">
+        <div><span class="badge badge--success">Published</span> Visible to staff, students and parents.</div>
+        <div><span class="badge badge--neutral">Draft</span> Only administrators can see it.</div>
+      </div>
+    </section>
+  </div>
+</div>
+{% endblock %}

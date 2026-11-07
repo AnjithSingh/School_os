@@ -1,0 +1,60 @@
+{% extends "layouts/app.html" %}
+{% from "macros/ui.html" import page_head, field, status_badge, empty %}
+{% from "macros/icons.html" import icon %}
+
+{% block title %}Leave · {{ school.name }}{% endblock %}
+
+{% block content %}
+{{ page_head("Leave", "Apply for staff leave and follow the approval decision. Approved leave is recorded against your employment record.") }}
+
+<div class="grid grid--sidebar">
+  <section class="card card--flush">
+    <div class="card__head">
+      <div><h2>My applications</h2><div class="sub">{{ rows|length }} application{{ "" if rows|length == 1 else "s" }}</div></div>
+    </div>
+    {% if rows %}
+      <div class="table-wrap">
+        <table class="table table--stack">
+          <thead><tr><th>Dates</th><th class="num">Days</th><th>Type</th><th>Reason</th><th>Status</th><th>Decision</th></tr></thead>
+          <tbody>
+            {% for item in rows %}
+              <tr>
+                <td data-label="Dates" class="small nowrap">{{ item.from_date|d }} – {{ item.to_date|d }}</td>
+                <td data-label="Days" class="num">{{ item.days }}</td>
+                <td data-label="Type" class="small">{{ item.leave_type|title }}</td>
+                <td data-label="Reason" class="small">{{ item.reason|truncate(90) }}</td>
+                <td data-label="Status">{{ status_badge(item.status) }}</td>
+                <td data-label="Decision" class="small">
+                  {% if item.review_remarks %}{{ item.review_remarks }}
+                  {% elif item.reviewed_at %}{{ item.reviewed_at|dt }}
+                  {% else %}<span class="muted">Pending review</span>{% endif %}
+                </td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    {% else %}
+      {{ empty("No leave applications", "Use the form alongside to submit your first application.", "calendar") }}
+    {% endif %}
+  </section>
+
+  <section class="card card--pad">
+    <h2 class="mb-1">Apply for leave</h2>
+    <p class="muted small">Attach a medical certificate or supporting document where relevant.</p>
+    <form method="post" enctype="multipart/form-data" novalidate>
+      {{ form.hidden_tag() }}
+      <div class="stack">
+        <div class="form-grid">
+          {{ field(form.from_date) }}
+          {{ field(form.to_date) }}
+        </div>
+        {{ field(form.leave_type) }}
+        {{ field(form.reason, placeholder="Explain the reason for the leave") }}
+        {{ field(form.attachment, hint="Optional, up to the school upload limit.") }}
+        <button class="btn btn--primary btn--block" type="submit">{{ icon("check", 16) }} Submit application</button>
+      </div>
+    </form>
+  </section>
+</div>
+{% endblock %}

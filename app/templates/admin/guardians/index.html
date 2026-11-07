@@ -1,0 +1,110 @@
+{% extends "layouts/app.html" %}
+{% from "macros/ui.html" import page_head, status_badge, pagination, empty, avatar %}
+{% from "macros/icons.html" import icon %}
+
+{% block title %}Guardians · {{ school.name }}{% endblock %}
+
+{% block content %}
+{{ page_head("Guardians", "Family directory and the verified links that give parents portal access.") }}
+
+{% if pending %}
+  <section class="card mb-2">
+    <div class="card__head">
+      <div><h2>Awaiting verification</h2><div class="sub">Verify only after checking the relationship with the family.</div></div>
+      <span class="badge badge--warning">{{ pending|length }} pending</span>
+    </div>
+    <div class="card__body stack">
+      {% for link in pending %}
+        <div class="between" style="flex-wrap:wrap;gap:.75rem">
+          <div>
+            <div class="row-title">{{ link.guardian.full_name }} → {{ link.student.full_name }}</div>
+            <div class="small muted">{{ link.relationship }} · {{ link.guardian.phone or "No phone" }} · {{ link.student.admission_no }}</div>
+          </div>
+          <div class="cluster">
+            <form class="inline-form" method="post" action="{{ url_for('admin_guardians.verify', link_id=link.id) }}">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+              <button class="btn btn--primary btn--sm" type="submit">Verify link</button>
+            </form>
+            <form class="inline-form" method="post" action="{{ url_for('admin_guardians.revoke', link_id=link.id) }}"
+                  data-confirm="Revoke this pending link?">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+              <button class="btn btn--ghost btn--sm" type="submit">Revoke</button>
+            </form>
+          </div>
+        </div>
+      {% endfor %}
+    </div>
+  </section>
+{% endif %}
+
+<form class="filter-bar mb-2" method="get">
+  <div class="field">
+    <label for="q">Search</label>
+    <input class="input search-input" id="q" name="q" value="{{ q }}" placeholder="Name or phone">
+  </div>
+  <button class="btn btn--ghost" type="submit">{{ icon("search", 16) }} Search</button>
+  <a class="btn btn--quiet" href="{{ url_for('admin_guardians.index') }}">Clear</a>
+</form>
+
+<section class="card card--flush">
+  {% if page.items %}
+    <div class="table-wrap">
+      <table class="table table--stack">
+        <thead><tr><th>Guardian</th><th>Contact</th><th>Children</th><th>Portal</th><th class="num">Actions</th></tr></thead>
+        <tbody>
+          {% for guardian in page.items %}
+            <tr>
+              <td data-label="Guardian">
+                <div class="person">
+                  {{ avatar(guardian.full_name) }}
+                  <div>
+                    <div class="person__name">{{ guardian.full_name }}</div>
+                    <div class="person__meta">{{ guardian.occupation or "Occupation not recorded" }}</div>
+                  </div>
+                </div>
+              </td>
+              <td data-label="Contact" class="small">{{ guardian.phone or "—" }}{% if guardian.email %}<span class="sub">{{ guardian.email }}</span>{% endif %}</td>
+              <td data-label="Children">
+                {% for link in guardian.links %}
+                  <div class="small">
+                    {{ link.student.full_name if link.student else "—" }}
+                    {{ status_badge(link.status) }}
+                  </div>
+                {% else %}
+                  <span class="muted small">No links</span>
+                {% endfor %}
+              </td>
+              <td data-label="Portal">
+                {% if guardian.user %}
+                  <span class="badge {{ 'badge--success' if guardian.user.is_active else 'badge--neutral' }}">{{ guardian.user.username }}</span>
+                {% else %}
+                  <span class="badge">No login</span>
+                {% endif %}
+              </td>
+              <td data-label="Actions" class="num nowrap">
+                {% if guardian.user %}
+                  <form class="inline-form" method="post" action="{{ url_for('admin_guardians.toggle_portal', guardian_id=guardian.id) }}"
+                        data-confirm="Change portal access for {{ guardian.full_name }}?">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <button class="btn btn--quiet btn--sm" type="submit">{{ 'Disable' if guardian.user.is_active else 'Enable' }} portal</button>
+                  </form>
+                {% endif %}
+                {% for link in guardian.links if link.status.value == "VERIFIED" %}
+                  <form class="inline-form" method="post" action="{{ url_for('admin_guardians.revoke', link_id=link.id) }}"
+                        data-confirm="Revoke access to {{ link.student.full_name }}?">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <button class="btn btn--quiet btn--sm" type="submit">Revoke {{ link.student.first_name }}</button>
+                  </form>
+                {% endfor %}
+              </td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    <div class="card__foot">{{ pagination(page) }}</div>
+  {% else %}
+    {{ empty("No guardians found", "Guardians are created from a student profile when you link a family.", "heart") }}
+  {% endif %}
+</section>
+{% endblock %}

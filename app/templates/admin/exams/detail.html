@@ -1,0 +1,133 @@
+{% extends "layouts/app.html" %}
+{% from "macros/ui.html" import page_head, field, status_badge, empty %}
+{% from "macros/icons.html" import icon %}
+
+{% block title %}{{ exam.name }} · {{ school.name }}{% endblock %}
+
+{% block content %}
+<div class="breadcrumb">
+  <a href="{{ url_for('admin_exams.index') }}">Examinations</a>
+  <span>{{ exam.name }}</span>
+</div>
+
+{% call page_head(exam.name, (exam.exam_type.name if exam.exam_type else "Examination") ~ " · " ~ (exam.start_date|d if exam.start_date else "Dates not set") ~ " · " ~ (exam.session.name if exam.session else "")) %}
+  {{ status_badge(exam.status) }}
+  <a class="btn btn--ghost" href="{{ url_for('admin_exams.progress') }}">Marks progress</a>
+  <a class="btn btn--ghost" href="{{ url_for('admin_exams.analytics', exam_id=exam.id) }}">{{ icon("chart", 16) }} Analytics</a>
+  <a class="btn btn--ghost" href="{{ url_for('admin_exams.results', exam_id=exam.id) }}">Results</a>
+{% endcall %}
+
+<div class="grid grid--4 mb-2">
+  <div class="stat"><div class="stat__label">Subjects</div><div class="stat__value">{{ exam.subjects|length }}</div><div class="stat__hint">across {{ exam.classes|length }} classes</div></div>
+  <div class="stat stat--accent"><div class="stat__label">Marks sheets</div><div class="stat__value">{{ sheets|length }}</div><div class="stat__hint">one per subject and section</div></div>
+  <div class="stat stat--success"><div class="stat__label">Results</div><div class="stat__value">{{ exam.results.count() }}</div><div class="stat__hint">computed summaries</div></div>
+  <div class="stat stat--danger"><div class="stat__label">Pass policy</div><div class="stat__value">33%</div><div class="stat__hint">overall and per subject by default</div></div>
+</div>
+
+<div class="grid grid--sidebar mb-2">
+  <section class="card">
+    <div class="card__head">
+      <div><h2>Examination schedule</h2><div class="sub">Subjects included for each class</div></div>
+    </div>
+    {% if exam.subjects %}
+      <div class="table-wrap">
+        <table class="table table--compact table--stack">
+          <thead><tr><th>Class</th><th>Subject</th><th>Date</th><th>Time</th><th class="num">Max</th><th class="num">Pass</th><th>Room</th></tr></thead>
+          <tbody>
+            {% for subject in exam.subjects %}
+              <tr>
+                <td data-label="Class">{{ subject.school_class.name if subject.school_class else "—" }}</td>
+                <td data-label="Subject"><span class="row-title">{{ subject.subject.name if subject.subject else "—" }}</span></td>
+                <td data-label="Date" class="small">{{ subject.exam_date|d if subject.exam_date else "—" }}</td>
+                <td data-label="Time" class="small">{{ subject.start_time|t if subject.start_time else "—" }}{% if subject.end_time %} – {{ subject.end_time|t }}{% endif %}</td>
+                <td data-label="Max" class="num">{{ subject.max_marks }}</td>
+                <td data-label="Pass" class="num">{{ subject.pass_marks }}</td>
+                <td data-label="Room" class="small">{{ subject.room or "—" }}</td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    {% else %}
+      {{ empty("No subjects yet", "Add subjects with the form on the right to prepare marks sheets.", "book") }}
+    {% endif %}
+  </section>
+
+  <div class="stack">
+    <section class="card card--pad">
+      <h2 class="mb-2">Add a subject</h2>
+      <form method="post" action="{{ url_for('admin_exams.add_subject', exam_id=exam.id) }}" novalidate>
+        {{ form.hidden_tag() }}
+        <div class="stack">
+          {{ field(form.school_class_id) }}
+          {{ field(form.subject_id) }}
+          <div class="form-grid">
+            {{ field(form.exam_date) }}
+            {{ field(form.room) }}
+            {{ field(form.start_time) }}
+            {{ field(form.end_time) }}
+            {{ field(form.max_marks) }}
+            {{ field(form.pass_marks) }}
+          </div>
+          <button class="btn btn--primary btn--block" type="submit">{{ icon("plus", 16) }} Add subject</button>
+        </div>
+      </form>
+    </section>
+
+    <section class="card card--pad">
+      <h2 class="mb-1">Workflow</h2>
+      <p class="muted small">Move the examination through its states. Results can only be computed once marks sheets are approved.</p>
+      <form method="post" action="{{ url_for('admin_exams.change_status', exam_id=exam.id) }}" class="stack">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <select class="select" name="status" aria-label="New state">
+          {% for value, label in [("SCHEDULED", "Scheduled"), ("MARKS_ENTRY", "Marks entry open"), ("APPROVED", "Approved"), ("ARCHIVED", "Archived")] %}
+            <option value="{{ value }}" {{ 'selected' if exam.status.value == value }}>{{ label }}</option>
+          {% endfor %}
+        </select>
+        <button class="btn btn--ghost btn--block" type="submit">Update state</button>
+      </form>
+      <hr>
+      <form method="post" action="{{ url_for('admin_exams.compute', exam_id=exam.id) }}" data-confirm="Compute results from approved marks sheets? Existing summaries are refreshed.">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <button class="btn btn--primary btn--block" type="submit">{{ icon("award", 16) }} Compute results</button>
+      </form>
+      <form method="post" action="{{ url_for('admin_exams.publish_results', exam_id=exam.id) }}" class="mt-1" data-confirm="Publish results to families? This cannot be undone quietly.">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <button class="btn btn--accent btn--block" type="submit">Publish results</button>
+      </form>
+      <a class="btn btn--ghost btn--block mt-1" href="{{ url_for('admin_exams.report_cards', exam_id=exam.id) }}">Report cards</a>
+    </section>
+  </div>
+</div>
+
+<section class="card card--flush">
+  <div class="card__head">
+    <div><h2>Marks sheets</h2><div class="sub">Approve sheets before computing results</div></div>
+    <a class="btn btn--ghost btn--sm" href="{{ url_for('admin_exams.progress') }}">All years</a>
+  </div>
+  {% if sheets %}
+    <div class="table-wrap">
+      <table class="table table--stack">
+        <thead><tr><th>Subject</th><th>Section</th><th>Teacher</th><th class="num">Entered</th><th>Status</th><th class="num"></th></tr></thead>
+        <tbody>
+          {% for sheet in sheets %}
+            <tr>
+              <td data-label="Subject">
+                <span class="row-title">{{ sheet.exam_subject.subject.name if sheet.exam_subject.subject else "—" }}</span>
+                <span class="sub">{{ sheet.exam_subject.school_class.name if sheet.exam_subject.school_class else "" }}</span>
+              </td>
+              <td data-label="Section">{{ sheet.section.label if sheet.section else "—" }}</td>
+              <td data-label="Teacher" class="small">{{ sheet.teacher.full_name if sheet.teacher else "Unassigned" }}</td>
+              <td data-label="Entered" class="num">{{ sheet.entered_count }} / {{ sheet.records|length }}</td>
+              <td data-label="Status">{{ status_badge(sheet.status) }}</td>
+              <td data-label="" class="num"><a class="btn btn--quiet btn--sm" href="{{ url_for('admin_exams.sheet', exam_id=exam.id, sheet_id=sheet.id) }}">Open</a></td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  {% else %}
+    {{ empty("No marks sheets", "Add a subject to create marks sheets for each section of that class.", "clipboard") }}
+  {% endif %}
+</section>
+{% endblock %}

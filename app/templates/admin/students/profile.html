@@ -1,0 +1,208 @@
+{% extends "layouts/app.html" %}
+{% from "macros/ui.html" import page_head, status_badge, avatar, progress_bar, empty %}
+{% from "macros/icons.html" import icon %}
+
+{% block title %}{{ student.full_name }} · {{ school.name }}{% endblock %}
+
+{% block content %}
+<div class="breadcrumb">
+  <a href="{{ url_for('admin_students.index') }}">Students</a>
+  <span>{{ student.full_name }}</span>
+</div>
+
+{% call page_head(student.full_name, student.admission_no ~ " · " ~ (enrollment.section.label if enrollment else "Not enrolled") ~ " · " ~ (student.status.value|title)) %}
+  {% if has_permission("students.manage") %}
+    <a class="btn btn--ghost" href="{{ url_for('admin_students.edit', student_id=student.id) }}">{{ icon("edit", 16) }} Edit</a>
+    <a class="btn btn--ghost" href="{{ url_for('admin_fees.student_ledger', student_id=student.id) }}">Fees</a>
+    <a class="btn btn--ghost" href="{{ url_for('admin_attendance.report', student_id=student.id) }}">Attendance</a>
+  {% endif %}
+{% endcall %}
+
+<div class="grid grid--sidebar">
+  <div class="stack">
+    <section class="card card--pad">
+      <div class="cluster" style="align-items:flex-start">
+        {{ avatar(student.full_name, url_for('files.inline', file_uuid=student.photo.uuid) if student.photo else None, "avatar--xl") }}
+        <div style="flex:1">
+          <h2 class="mb-0">{{ student.full_name }}</h2>
+          <div class="muted small">
+            {{ student.admission_no }}
+            {% if enrollment %} · {{ enrollment.section.label }} · Roll {{ enrollment.roll_no or "—" }}{% endif %}
+          </div>
+          <div class="cluster mt-1">
+            {{ status_badge(student.status) }}
+            {% if student.gender %}<span class="badge">{{ student.gender.value|title }}</span>{% endif %}
+            {% if student.age %}<span class="badge">{{ student.age }} years</span>{% endif %}
+            {% if student.blood_group %}<span class="badge badge--danger">{{ student.blood_group }}</span>{% endif %}
+          </div>
+        </div>
+      </div>
+      <hr>
+      <dl class="dl">
+        <dt>Date of birth</dt><dd>{{ student.dob|d }}</dd>
+        <dt>Admitted on</dt><dd>{{ student.admission_date|d }}</dd>
+        <dt>Phone</dt><dd>{{ student.phone or "—" }}</dd>
+        <dt>Email</dt><dd>{{ student.email or "—" }}</dd>
+        <dt>Address</dt><dd>{{ [student.address, student.city, student.state, student.pincode]|select|join(", ") or "—" }}</dd>
+        <dt>Emergency contact</dt><dd>{{ student.emergency_name or "—" }}{% if student.emergency_phone %} · {{ student.emergency_phone }}{% endif %}</dd>
+        <dt>Category</dt><dd>{{ student.category or "—" }}</dd>
+        <dt>Previous school</dt><dd>{{ student.previous_school or "—" }}</dd>
+      </dl>
+      {% if student.notes %}<div class="notice mt-2">{{ student.notes }}</div>{% endif %}
+    </section>
+
+    <section class="card">
+      <div class="card__head"><h2>Attendance this year</h2><span class="sub">{{ current_session.name if current_session else "" }}</span></div>
+      <div class="card__body">
+        {% if attendance.total %}
+          <div class="grid grid--4 mb-2">
+            <div><div class="stat__label">Present</div><div class="stat__value text-success">{{ attendance.counts.PRESENT }}</div></div>
+            <div><div class="stat__label">Absent</div><div class="stat__value text-danger">{{ attendance.counts.ABSENT }}</div></div>
+            <div><div class="stat__label">Late</div><div class="stat__value text-warning">{{ attendance.counts.LATE }}</div></div>
+            <div><div class="stat__label">Rate</div><div class="stat__value">{{ attendance.percentage|percent }}</div></div>
+          </div>
+          {{ progress_bar(attendance.percentage or 0, "success" if (attendance.percentage or 0) >= 90 else "warning") }}
+          <div class="tiny muted mt-1">{{ attendance.total }} school days recorded</div>
+        {% else %}
+          <p class="muted small mb-0">No attendance has been recorded for this student yet.</p>
+        {% endif %}
+      </div>
+    </section>
+
+    <section class="card">
+      <div class="card__head"><h2>Results</h2></div>
+      <div class="table-wrap">
+        <table class="table table--stack">
+          <thead><tr><th>Examination</th><th class="num">Marks</th><th class="num">%</th><th>Grade</th><th>Result</th></tr></thead>
+          <tbody>
+            {% for result in results %}
+              <tr>
+                <td data-label="Examination">{{ result.examination.name }}<span class="sub">{{ result.examination.start_date|d }}</span></td>
+                <td data-label="Marks" class="num">{{ result.total_obtained }} / {{ result.total_max }}</td>
+                <td data-label="%" class="num">{{ result.percentage|percent }}</td>
+                <td data-label="Grade"><strong>{{ result.grade or "—" }}</strong></td>
+                <td data-label="Result">{{ status_badge(result.result_status) }}</td>
+              </tr>
+            {% else %}
+              <tr><td colspan="5" class="muted">No results have been computed for this student.</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section class="card">
+      <div class="card__head"><h2>Enrolment history</h2></div>
+      <div class="table-wrap">
+        <table class="table table--compact">
+          <thead><tr><th>Academic year</th><th>Section</th><th class="num">Roll</th><th>Status</th></tr></thead>
+          <tbody>
+            {% for row in enrollment_history %}
+              <tr>
+                <td>{{ row.session.name }}</td>
+                <td>{{ row.section.label }}</td>
+                <td class="num">{{ row.roll_no or "—" }}</td>
+                <td>{{ status_badge(row.status) }}</td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </section>
+  </div>
+
+  <div class="stack">
+    <section class="card">
+      <div class="card__head"><h2>Guardians</h2><span class="sub">{{ links|length }} linked</span></div>
+      <div class="card__body">
+        {% if links %}
+          <ul class="list">
+            {% for link in links %}
+              <li class="list__item">
+                <div class="list__body">
+                  <div class="list__title">{{ link.guardian.full_name }}{% if link.is_primary %} <span class="badge badge--accent">Primary</span>{% endif %}</div>
+                  <div class="list__meta">{{ link.relationship }} · {{ link.guardian.phone or "No phone" }}</div>
+                  <div class="cluster mt-1">
+                    {% for label, flag in [("Results", link.can_view_academics), ("Attendance", link.can_view_attendance), ("Fees", link.can_pay_fees), ("Homework", link.can_view_homework), ("Leave", link.can_apply_leave)] %}
+                      <span class="badge {{ 'badge--success' if flag else 'badge--neutral' }}">{{ label }}</span>
+                    {% endfor %}
+                  </div>
+                </div>
+                {{ status_badge(link.status) }}
+              </li>
+            {% endfor %}
+          </ul>
+        {% else %}
+          <p class="muted small">No guardian is linked yet. Add one below so the family can use the portal.</p>
+        {% endif %}
+      </div>
+      {% if has_permission("parents.manage") %}
+        <div class="card__foot">
+          <details>
+            <summary class="small" style="cursor:pointer;font-weight:600">Add a guardian</summary>
+            <form method="post" action="{{ url_for('admin_students.add_guardian', student_id=student.id) }}" class="mt-2">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+              <div class="stack">
+                <div class="field"><label for="g-name">Full name</label><input class="input" id="g-name" name="full_name" required></div>
+                <div class="form-grid">
+                  <div class="field"><label for="g-rel">Relationship</label>
+                    <select class="select" id="g-rel" name="relationship">
+                      {% for value in ["Father", "Mother", "Guardian", "Grandparent", "Sibling", "Other"] %}
+                        <option value="{{ value }}">{{ value }}</option>
+                      {% endfor %}
+                    </select>
+                  </div>
+                  <div class="field"><label for="g-phone">Phone</label><input class="input" id="g-phone" name="phone"></div>
+                </div>
+                <div class="field"><label for="g-email">Email</label><input class="input" id="g-email" name="email" type="email"></div>
+                <div class="field"><label for="g-occ">Occupation</label><input class="input" id="g-occ" name="occupation"></div>
+                <div class="field"><label for="g-addr">Address</label><input class="input" id="g-addr" name="address"></div>
+                <div class="form-grid">
+                  <div class="field"><label for="g-user">Portal username (optional)</label><input class="input" id="g-user" name="username" autocomplete="off"></div>
+                  <div class="field"><label for="g-pass">Temporary password</label><input class="input" id="g-pass" name="password" type="password" autocomplete="new-password"></div>
+                </div>
+                <label class="check"><input type="checkbox" name="is_primary" value="y" checked> <span>Primary guardian</span></label>
+                <div class="form-grid">
+                  <label class="check"><input type="checkbox" name="can_view_academics" value="y" checked> <span>View results</span></label>
+                  <label class="check"><input type="checkbox" name="can_view_attendance" value="y" checked> <span>View attendance</span></label>
+                  <label class="check"><input type="checkbox" name="can_pay_fees" value="y" checked> <span>View and pay fees</span></label>
+                  <label class="check"><input type="checkbox" name="can_view_homework" value="y" checked> <span>View homework</span></label>
+                  <label class="check"><input type="checkbox" name="can_apply_leave" value="y" checked> <span>Apply for leave</span></label>
+                  <label class="check"><input type="checkbox" name="receive_notifications" value="y" checked> <span>Receive notifications</span></label>
+                </div>
+                <button class="btn btn--primary btn--sm" type="submit">Link guardian</button>
+              </div>
+            </form>
+          </details>
+        </div>
+      {% endif %}
+    </section>
+
+    <section class="card card--pad">
+      <h2 class="mb-2">Fees</h2>
+      {% if ledger %}
+        <div class="between mb-1"><span class="muted small">Billed</span><span class="num">{{ ledger.total_net|money }}</span></div>
+        <div class="between mb-1"><span class="muted small">Paid</span><span class="num text-success">{{ ledger.total_paid|money }}</span></div>
+        <div class="between mb-2"><span class="muted small">Balance</span><span class="num {{ 'text-danger' if ledger.balance }}">{{ ledger.balance|money }}</span></div>
+        {{ progress_bar((ledger.total_paid / ledger.total_net * 100) if ledger.total_net else 0, "success") }}
+        <a class="btn btn--ghost btn--block mt-2" href="{{ url_for('admin_fees.student_ledger', student_id=student.id) }}">Open fee ledger</a>
+      {% else %}
+        <p class="muted small mb-0">Fees have not been generated for this student.</p>
+      {% endif %}
+    </section>
+
+    {% if has_permission("students.manage") %}
+      <section class="card card--pad">
+        <h2 class="mb-1">Transfer out</h2>
+        <p class="muted small">Marks the student as transferred and closes the current enrolment. This does not delete any records.</p>
+        <form method="post" action="{{ url_for('admin_students.transfer', student_id=student.id) }}"
+              data-confirm="Mark {{ student.full_name }} as transferred?">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <div class="field mb-2"><label for="reason">Reason</label><input class="input" id="reason" name="reason" placeholder="Family relocation"></div>
+          <button class="btn btn--danger btn--sm" type="submit">Mark as transferred</button>
+        </form>
+      </section>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

@@ -1,0 +1,180 @@
+{% extends "layouts/app.html" %}
+{% from "macros/ui.html" import field, page_head, empty, badge %}
+{% from "macros/icons.html" import icon %}
+
+{% block title %}Classes &amp; subjects · {{ school.name }}{% endblock %}
+
+{% block content %}
+{% call page_head("Classes & subjects", "The academic structure for " ~ (session.name if session else "the current year") ~ ". Sections are recreated each academic year.") %}
+  <a class="btn btn--ghost" href="{{ url_for('admin_academics.grading') }}">{{ icon("award", 16) }} Grading scale</a>
+{% endcall %}
+
+{% if not session %}
+  <div class="notice mb-2">Create and activate an academic year in <a href="{{ url_for('admin.settings') }}">settings</a> before building sections.</div>
+{% endif %}
+
+<div class="grid grid--sidebar">
+  <div class="stack">
+    <section class="card">
+      <div class="card__head"><h2>Classes</h2><span class="sub">{{ classes|length }} configured</span></div>
+      <div class="table-wrap">
+        <table class="table table--compact">
+          <thead><tr><th>Class</th><th class="num">Level</th><th class="num">Sections this year</th></tr></thead>
+          <tbody>
+            {% for item in classes %}
+              <tr>
+                <td><span class="row-title">{{ item.name }}</span></td>
+                <td class="num">{{ item.level }}</td>
+                <td class="num">{{ sections|selectattr("school_class_id", "equalto", item.id)|list|length }}</td>
+              </tr>
+            {% else %}
+              <tr><td colspan="3" class="muted">No classes configured yet.</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section class="card">
+      <div class="card__head"><h2>Sections</h2><span class="sub">{{ sections|length }} this year</span></div>
+      <div class="table-wrap">
+        <table class="table table--compact table--stack">
+          <thead><tr><th>Section</th><th>Room</th><th>Class teacher</th><th class="num">Students</th></tr></thead>
+          <tbody>
+            {% for item in sections %}
+              <tr>
+                <td data-label="Section"><span class="row-title">{{ item.label }}</span></td>
+                <td data-label="Room">{{ item.room or "—" }}</td>
+                <td data-label="Class teacher" class="small">{{ item.class_teacher.full_name if item.class_teacher else "Not assigned" }}</td>
+                <td data-label="Students" class="num">{{ item.enrollments.count() }} / {{ item.capacity }}</td>
+              </tr>
+            {% else %}
+              <tr><td colspan="4" class="muted">No sections for this academic year.</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section class="card">
+      <div class="card__head"><h2>Subject allocations</h2><span class="sub">{{ allocations|length }} assignments</span></div>
+      <div class="table-wrap">
+        <table class="table table--compact table--stack">
+          <thead><tr><th>Section</th><th>Subject</th><th>Teacher</th><th class="num">Periods / week</th></tr></thead>
+          <tbody>
+            {% for row in allocations %}
+              <tr>
+                <td data-label="Section">{{ row.section.label }}</td>
+                <td data-label="Subject">{{ row.subject.name }}</td>
+                <td data-label="Teacher">{{ row.teacher.full_name if row.teacher else "—" }}</td>
+                <td data-label="Periods" class="num">{{ row.periods_per_week }}</td>
+              </tr>
+            {% else %}
+              <tr><td colspan="4" class="muted">Assign teachers to subjects so they can mark attendance and enter marks.</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </section>
+  </div>
+
+  <div class="stack">
+    <section class="card">
+      <div class="card__head"><h2>Add a class</h2></div>
+      <div class="card__body">
+        <form method="post" action="{{ url_for('admin_academics.create_class') }}" novalidate>
+          {{ class_form.hidden_tag() }}
+          <div class="stack">
+            {{ field(class_form.level, placeholder="6") }}
+            {{ field(class_form.name, placeholder="Class 6") }}
+            <button class="btn btn--primary btn--block" type="submit">Create class</button>
+          </div>
+        </form>
+      </div>
+    </section>
+
+    <section class="card">
+      <div class="card__head"><h2>Add a section</h2></div>
+      <div class="card__body">
+        <form method="post" action="{{ url_for('admin_academics.create_section') }}" novalidate>
+          {{ section_form.hidden_tag() }}
+          <div class="stack">
+            {{ field(section_form.school_class_id) }}
+            {{ field(section_form.name, placeholder="A") }}
+            {{ field(section_form.room, placeholder="601") }}
+            {{ field(section_form.capacity) }}
+            {{ field(section_form.class_teacher_id) }}
+            <button class="btn btn--primary btn--block" type="submit">Create section</button>
+          </div>
+        </form>
+      </div>
+    </section>
+
+    <section class="card">
+      <div class="card__head"><h2>Add a subject</h2></div>
+      <div class="card__body">
+        <form method="post" action="{{ url_for('admin_academics.create_subject') }}" novalidate>
+          {{ subject_form.hidden_tag() }}
+          <div class="stack">
+            {{ field(subject_form.code, placeholder="MAT") }}
+            {{ field(subject_form.name, placeholder="Mathematics") }}
+            {{ field(subject_form.is_elective) }}
+            <button class="btn btn--primary btn--block" type="submit">Create subject</button>
+          </div>
+        </form>
+      </div>
+    </section>
+
+    <section class="card">
+      <div class="card__head"><h2>Offer subject to a class</h2></div>
+      <div class="card__body">
+        <form method="post" action="{{ url_for('admin_academics.add_offering') }}" novalidate>
+          {{ offering_form.hidden_tag() }}
+          <div class="stack">
+            {{ field(offering_form.school_class_id) }}
+            {{ field(offering_form.subject_id) }}
+            {{ field(offering_form.default_max_marks) }}
+            <button class="btn btn--primary btn--block" type="submit">Add to class</button>
+          </div>
+        </form>
+      </div>
+    </section>
+
+    <section class="card">
+      <div class="card__head"><h2>Assign a teacher</h2></div>
+      <div class="card__body">
+        <form method="post" action="{{ url_for('admin_academics.create_allocation') }}" novalidate>
+          {{ allocation_form.hidden_tag() }}
+          <div class="stack">
+            {{ field(allocation_form.section_id) }}
+            {{ field(allocation_form.subject_id) }}
+            {{ field(allocation_form.teacher_id) }}
+            {{ field(allocation_form.periods_per_week) }}
+            <button class="btn btn--primary btn--block" type="submit">Save allocation</button>
+          </div>
+        </form>
+      </div>
+    </section>
+  </div>
+</div>
+
+<section class="card mt-2">
+  <div class="card__head"><h2>Subjects offered</h2><span class="sub">{{ offerings|length }} class-subject links</span></div>
+  <div class="table-wrap">
+    <table class="table table--compact">
+      <thead><tr><th>Class</th><th>Subject</th><th class="num">Default max marks</th></tr></thead>
+      <tbody>
+        {% for row in offerings %}
+          <tr>
+            <td>{{ row.school_class.name if row.school_class else "—" }}</td>
+            <td>{{ row.subject.name if row.subject else "—" }}</td>
+            <td class="num">{{ row.default_max_marks }}</td>
+          </tr>
+        {% else %}
+          <tr><td colspan="3" class="muted">No subjects have been offered to classes yet.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</section>
+{% endblock %}

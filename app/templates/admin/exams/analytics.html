@@ -1,0 +1,122 @@
+{% extends "layouts/app.html" %}
+{% from "macros/ui.html" import page_head, status_badge, empty, progress_bar %}
+{% from "macros/icons.html" import icon %}
+
+{% block title %}Analytics · {{ exam.name }} · {{ school.name }}{% endblock %}
+
+{% block scripts %}
+  <script src="{{ url_for('static', filename='js/vendor/chart.umd.min.js') }}" defer></script>
+{% endblock %}
+
+{% block content %}
+<div class="breadcrumb">
+  <a href="{{ url_for('admin_exams.index') }}">Examinations</a>
+  <a href="{{ url_for('admin_exams.detail', exam_id=exam.id) }}">{{ exam.name }}</a>
+  <span>Analytics</span>
+</div>
+
+{{ page_head("Analytics · " ~ exam.name, "Grade distribution, subject performance and the students who need support.") }}
+
+<div class="grid grid--4 mb-2">
+  <div class="stat"><div class="stat__label">Students</div><div class="stat__value">{{ summary.count }}</div><div class="stat__hint">computed results</div></div>
+  <div class="stat stat--success"><div class="stat__label">Pass rate</div><div class="stat__value">{{ summary.pass_rate|percent }}</div><div class="stat__hint">{{ summary.pass_count }} passed</div></div>
+  <div class="stat stat--accent"><div class="stat__label">Average</div><div class="stat__value">{{ summary.average|percent }}</div><div class="stat__hint">across all students</div></div>
+  <div class="stat stat--danger"><div class="stat__label">Range</div><div class="stat__value">{{ summary.lowest|percent }} – {{ summary.highest|percent }}</div><div class="stat__hint">lowest to highest</div></div>
+</div>
+
+<div class="grid grid--2 mb-2">
+  <section class="card">
+    <div class="card__head"><h2>Grade distribution</h2><span class="sub">{{ summary.count }} students</span></div>
+    <div class="card__body">
+      {% if grade_counts %}
+        <div class="chart-box mb-2"><canvas data-chart-src="{{ url_for('api.grade_distribution', exam_id=exam.id) }}" data-chart-type="bar" role="img" aria-label="Bar chart of grade distribution"></canvas></div>
+        <table class="table table--compact">
+          <thead><tr><th>Grade</th><th class="num">Students</th><th class="num">Share</th></tr></thead>
+          <tbody>
+            {% for grade, count in grade_counts.items() %}
+              <tr>
+                <td><strong>{{ grade }}</strong></td>
+                <td class="num">{{ count }}</td>
+                <td class="num">{{ ((count / summary.count * 100) if summary.count else 0)|percent }}</td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      {% else %}
+        {{ empty("No results to analyse", "Compute results for this examination first.", "chart") }}
+      {% endif %}
+    </div>
+  </section>
+
+  <section class="card">
+    <div class="card__head"><h2>Average by section</h2><span class="sub">Percentage</span></div>
+    <div class="card__body">
+      {% if by_class %}
+        <div class="stack">
+          {% for label, value in by_class.items() %}
+            <div>
+              <div class="between mb-1"><span class="small">{{ label }}</span><span class="num small">{{ value|percent }}</span></div>
+              {{ progress_bar(value, "success" if value >= 60 else "warning" if value >= 33 else "danger") }}
+            </div>
+          {% endfor %}
+        </div>
+      {% else %}
+        <p class="muted small mb-0">No section averages are available.</p>
+      {% endif %}
+    </div>
+  </section>
+</div>
+
+<section class="card card--flush mb-2">
+  <div class="card__head"><h2>Subject performance</h2><span class="sub">Average marks and range</span></div>
+  {% if subject_rows %}
+    <div class="table-wrap">
+      <table class="table table--stack">
+        <thead><tr><th>Subject</th><th>Class</th><th class="num">Average</th><th class="num">Percentage</th><th class="num">Highest</th><th class="num">Lowest</th><th class="num">Papers</th></tr></thead>
+        <tbody>
+          {% for row in subject_rows %}
+            <tr>
+              <td data-label="Subject"><span class="row-title">{{ row.subject }}</span></td>
+              <td data-label="Class">{{ row.class }}</td>
+              <td data-label="Average" class="num">{{ row.average }} / {{ row.max }}</td>
+              <td data-label="Percentage" class="num">
+                {{ row.percentage|percent }}
+                <div style="min-width:90px">{{ progress_bar(row.percentage, "success" if row.percentage >= 60 else "warning" if row.percentage >= 33 else "danger") }}</div>
+              </td>
+              <td data-label="Highest" class="num">{{ row.highest }}</td>
+              <td data-label="Lowest" class="num">{{ row.lowest }}</td>
+              <td data-label="Papers" class="num">{{ row.count }}</td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  {% else %}
+    {{ empty("No subject data", "Subject averages appear once marks have been entered.", "book") }}
+  {% endif %}
+</section>
+
+<section class="card card--flush">
+  <div class="card__head"><div><h2>Students needing support</h2><div class="sub">Two or more subject failures</div></div><span class="badge badge--warning">{{ weak|length }}</span></div>
+  {% if weak %}
+    <div class="table-wrap">
+      <table class="table table--stack">
+        <thead><tr><th>Student</th><th>Section</th><th class="num">Percentage</th><th class="num">Subjects failed</th><th>Result</th></tr></thead>
+        <tbody>
+          {% for row in weak %}
+            <tr>
+              <td data-label="Student"><strong>{{ row.student.full_name if row.student else "—" }}</strong></td>
+              <td data-label="Section">{{ row.section.label if row.section else "—" }}</td>
+              <td data-label="Percentage" class="num">{{ row.percentage|percent }}</td>
+              <td data-label="Subjects failed" class="num">{{ row.subjects_failed }}</td>
+              <td data-label="Result">{{ status_badge(row.result_status) }}</td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  {% else %}
+    <div class="card__body"><p class="muted small mb-0">No student has two or more subject failures.</p></div>
+  {% endif %}
+</section>
+{% endblock %}

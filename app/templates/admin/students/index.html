@@ -1,0 +1,95 @@
+{% extends "layouts/app.html" %}
+{% from "macros/ui.html" import page_head, status_badge, pagination, empty, avatar %}
+{% from "macros/icons.html" import icon %}
+
+{% block title %}Students · {{ school.name }}{% endblock %}
+
+{% block content %}
+{% call page_head("Students", "Admissions, class placement and family links for " ~ (current_session.name if current_session else "this year") ~ ".") %}
+  {% if has_permission("students.manage") %}
+    <a class="btn btn--ghost" href="{{ url_for('admin_students.export_csv') }}">{{ icon("download", 16) }} Export CSV</a>
+    <a class="btn btn--ghost" href="{{ url_for('admin_students.promote') }}">Promote</a>
+    <a class="btn btn--primary" href="{{ url_for('admin_students.create') }}">{{ icon("plus", 16) }} Admit student</a>
+  {% endif %}
+{% endcall %}
+
+<form class="filter-bar mb-2" method="get">
+  <div class="field">
+    <label for="q">Search</label>
+    <input class="input search-input" id="q" name="q" value="{{ q }}" placeholder="Name, admission number or phone">
+  </div>
+  <div class="field">
+    <label for="class_id">Class</label>
+    <select class="select" id="class_id" name="class_id">
+      <option value="">All classes</option>
+      {% for item in classes %}
+        <option value="{{ item.id }}" {{ 'selected' if class_id == item.id }}>{{ item.name }}</option>
+      {% endfor %}
+    </select>
+  </div>
+  <div class="field">
+    <label for="section_id">Section</label>
+    <select class="select" id="section_id" name="section_id">
+      <option value="">All sections</option>
+      {% for item in sections %}
+        <option value="{{ item.id }}" {{ 'selected' if section_id == item.id }}>{{ item.label }}</option>
+      {% endfor %}
+    </select>
+  </div>
+  <div class="field">
+    <label for="status">Status</label>
+    <select class="select" id="status" name="status">
+      <option value="">Any status</option>
+      {% for value in statuses %}
+        <option value="{{ value.value }}" {{ 'selected' if status == value.value }}>{{ value.value|replace("_", " ")|title }}</option>
+      {% endfor %}
+    </select>
+  </div>
+  <button class="btn btn--ghost" type="submit">{{ icon("search", 16) }} Search</button>
+  <a class="btn btn--quiet" href="{{ url_for('admin_students.index') }}">Clear</a>
+</form>
+
+<section class="card card--flush">
+  {% if page.items %}
+    <div class="table-wrap">
+      <table class="table table--stack">
+        <thead>
+          <tr><th>Student</th><th>Class</th><th class="num">Roll</th><th>Guardian phone</th><th>Status</th><th class="num"></th></tr>
+        </thead>
+        <tbody>
+          {% for student in page.items %}
+            {% set enrollment = student.enrollment_for(current_session.id) if current_session else None %}
+            <tr>
+              <td data-label="Student">
+                <div class="person">
+                  {{ avatar(student.full_name) }}
+                  <div>
+                    <a class="person__name" href="{{ url_for('admin_students.profile', student_id=student.id) }}">{{ student.full_name }}</a>
+                    <div class="person__meta">{{ student.admission_no }}{% if student.dob %} · {{ student.age }} years{% endif %}</div>
+                  </div>
+                </div>
+              </td>
+              <td data-label="Class">
+                {% if enrollment %}
+                  <span class="badge badge--info">{{ enrollment.section.label }}</span>
+                {% else %}
+                  <span class="muted small">Not enrolled</span>
+                {% endif %}
+              </td>
+              <td data-label="Roll" class="num">{{ enrollment.roll_no if enrollment and enrollment.roll_no else "—" }}</td>
+              <td data-label="Guardian phone" class="small">{{ student.phone or "—" }}</td>
+              <td data-label="Status">{{ status_badge(student.status) }}</td>
+              <td data-label="" class="num">
+                <a class="btn btn--quiet btn--sm" href="{{ url_for('admin_students.profile', student_id=student.id) }}">Open</a>
+              </td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    <div class="card__foot">{{ pagination(page) }}</div>
+  {% else %}
+    {{ empty("No students match", "Adjust the filters, or admit the first student.", "users", url_for('admin_students.create') if has_permission('students.manage') else None, "Admit student") }}
+  {% endif %}
+</section>
+{% endblock %}

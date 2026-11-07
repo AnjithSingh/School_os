@@ -1,0 +1,86 @@
+{% extends "layouts/app.html" %}
+{% from "macros/ui.html" import page_head, status_badge, progress_bar, empty %}
+{% from "macros/icons.html" import icon %}
+
+{% block title %}Results · {{ student.full_name if student else "Child" }} · {{ school.name }}{% endblock %}
+
+{% block content %}
+{% call page_head("Results", (student.full_name if student else "Child") ~ " · " ~ (current_session.name if current_session else "Current year")) %}
+  <a class="btn btn--ghost" href="{{ url_for('parent.children') }}">{{ icon("users", 16) }} Switch child</a>
+  <a class="btn btn--ghost" href="{{ url_for('parent.child_report_cards', student_id=student.id) }}">{{ icon("file-text", 16) }} Report cards</a>
+{% endcall %}
+
+{% if rows %}
+  <div class="stack">
+    {% for row in rows %}
+      {% set exam = row.exam %}
+      {% set summary = row.summary %}
+      <section class="card card--flush">
+        <div class="card__head">
+          <div>
+            <h2 class="mb-0">{{ exam.name }}</h2>
+            <div class="sub">
+              {{ exam.exam_type.name if exam.exam_type else "Examination" }}
+              {% if exam.result_date %} · published {{ exam.result_date|d }}{% endif %}
+            </div>
+          </div>
+          <div class="cluster">
+            {{ status_badge(summary.result_status) }}
+            {% if summary.grade %}<span class="badge badge--info">Grade {{ summary.grade }}</span>{% endif %}
+          </div>
+        </div>
+
+        <div class="card__body">
+          <div class="grid grid--4 mb-2">
+            <div class="stat stat--{{ summary.tone }}">
+              <div class="stat__label">Result</div>
+              <div class="stat__value">{{ summary.result_status.value|title }}</div>
+              <div class="stat__hint">{{ summary.subjects_failed }} subject{{ "" if summary.subjects_failed == 1 else "s" }} failed</div>
+            </div>
+            <div class="stat">
+              <div class="stat__label">Total</div>
+              <div class="stat__value">{{ summary.total_obtained }} / {{ summary.total_max }}</div>
+              <div class="stat__hint">marks obtained</div>
+            </div>
+            <div class="stat stat--accent">
+              <div class="stat__label">Percentage</div>
+              <div class="stat__value">{{ summary.percentage|percent }}</div>
+              <div class="stat__hint">{{ progress_bar(summary.percentage, "success" if summary.percentage >= 60 else "warning" if summary.percentage >= 33 else "danger") }}</div>
+            </div>
+            <div class="stat">
+              <div class="stat__label">Grade point</div>
+              <div class="stat__value">{{ summary.grade_point if summary.grade_point is not none else "—" }}</div>
+              <div class="stat__hint">{{ summary.grade or "Not graded" }}</div>
+            </div>
+          </div>
+
+          {% if row.subjects %}
+            <div class="table-wrap">
+              <table class="table table--compact table--stack">
+                <thead><tr><th>Subject</th><th class="num">Obtained</th><th class="num">Maximum</th><th class="num">Percentage</th><th>Grade</th><th>Status</th><th>Remarks</th></tr></thead>
+                <tbody>
+                  {% for subject in row.subjects %}
+                    <tr>
+                      <td data-label="Subject"><span class="row-title">{{ subject.subject.name if subject.subject else "—" }}</span></td>
+                      <td data-label="Obtained" class="num">{{ subject.obtained if subject.obtained is not none else "—" }}</td>
+                      <td data-label="Maximum" class="num">{{ subject.max_marks }}</td>
+                      <td data-label="Percentage" class="num">{{ subject.percentage|percent if subject.percentage is not none else "—" }}</td>
+                      <td data-label="Grade"><strong>{{ subject.grade or "—" }}</strong></td>
+                      <td data-label="Status">{{ status_badge(subject.status) }}</td>
+                      <td data-label="Remarks" class="small">{{ subject.remarks or "—" }}</td>
+                    </tr>
+                  {% endfor %}
+                </tbody>
+              </table>
+            </div>
+          {% else %}
+            <p class="muted small mb-0">The subject breakdown is not available for this examination.</p>
+          {% endif %}
+        </div>
+      </section>
+    {% endfor %}
+  </div>
+{% else %}
+  {{ empty("No published results", "Results appear here once the school publishes them for this child.", "award", url_for('parent.child_exams', student_id=student.id), "View examination schedule") }}
+{% endif %}
+{% endblock %}

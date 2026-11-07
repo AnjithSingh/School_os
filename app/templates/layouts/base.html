@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="{{ brand.primary if brand else '#1D4E89' }}">
+  <meta name="csrf-token" content="{{ csrf_token() }}">
+  <title>{% block title %}{{ school.display_name if school else 'School OS' }}{% endblock %}</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/app.css') }}">
+  {% block head %}{% endblock %}
+</head>
+<body class="{% block body_class %}{% endblock %}">
+  <a class="skip-link" href="#main-content">Skip to content</a>
+  {% block body %}{% endblock %}
+  <div class="modal" id="confirm-dialog" role="dialog" aria-modal="true"
+       aria-labelledby="confirm-dialog-title" hidden>
+    <div class="modal__panel">
+      <h2 class="modal__title" id="confirm-dialog-title">Please confirm</h2>
+      <p class="modal__message" id="confirm-dialog-message"></p>
+      <div class="modal__actions">
+        <button type="button" class="btn btn--ghost" id="confirm-dialog-cancel">Cancel</button>
+        <button type="button" class="btn btn--primary" id="confirm-dialog-accept">Confirm</button>
+      </div>
+    </div>
+  </div>
+  <div class="toast-region" id="toast-region" aria-live="polite" aria-atomic="true"></div>
+  <script src="{{ url_for('static', filename='js/core.js') }}" defer></script>
+  {% block scripts %}{% endblock %}
+</body>
+</html>

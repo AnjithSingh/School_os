@@ -1,0 +1,83 @@
+{% extends "layouts/app.html" %}
+{% from "macros/ui.html" import page_head, status_badge, empty %}
+{% from "macros/icons.html" import icon %}
+
+{% block title %}Marks sheet · {{ school.name }}{% endblock %}
+
+{% block content %}
+<div class="breadcrumb">
+  <a href="{{ url_for('admin_exams.index') }}">Examinations</a>
+  <a href="{{ url_for('admin_exams.detail', exam_id=exam.id) }}">{{ exam.name }}</a>
+  <span>{{ sheet.exam_subject.subject.name }}</span>
+</div>
+
+{% call page_head(
+  (sheet.exam_subject.subject.name if sheet.exam_subject.subject else "Marks sheet") ~ " · " ~ (sheet.section.label if sheet.section else ""),
+  (sheet.exam_subject.school_class.name if sheet.exam_subject.school_class else "") ~ " · maximum " ~ sheet.exam_subject.max_marks ~ " · passing " ~ sheet.exam_subject.pass_marks
+) %}
+  {{ status_badge(sheet.status) }}
+  {% if sheet.status.value in ("SUBMITTED", "REOPENED") %}
+    <form class="inline-form" method="post" action="{{ url_for('admin_exams.approve', exam_id=exam.id, sheet_id=sheet.id) }}">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <button class="btn btn--primary" type="submit">{{ icon("check", 16) }} Approve sheet</button>
+    </form>
+  {% elif sheet.status.value == "APPROVED" %}
+    <button class="btn btn--ghost" type="button" data-toggle-target="#reopen-panel" aria-expanded="false">Reopen for correction</button>
+  {% endif %}
+  <a class="btn btn--ghost" href="{{ url_for('admin_exams.detail', exam_id=exam.id) }}">Back to examination</a>
+{% endcall %}
+
+{% if sheet.status.value == "APPROVED" %}
+  <div class="notice mb-2">
+    <strong>Approved.</strong> This sheet is locked. Reopening it keeps the previous values in the marks audit and requires a reason.
+  </div>
+  <section class="card card--pad mb-2" id="reopen-panel" hidden>
+    <h2 class="mb-1">Reopen this sheet</h2>
+    <form method="post" action="{{ url_for('admin_exams.reopen', exam_id=exam.id, sheet_id=sheet.id) }}" data-confirm="Reopen this approved sheet?">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <div class="field mb-2">
+        <label for="reason">Reason</label>
+        <input class="input" id="reason" name="reason" required placeholder="e.g. marks entry error in question 4">
+      </div>
+      <button class="btn btn--danger btn--sm" type="submit">Reopen sheet</button>
+    </form>
+  </section>
+{% endif %}
+
+<section class="card card--flush">
+  <div class="card__head">
+    <div><h2>Marks</h2><div class="sub">{{ rows|length }} students · {{ sheet.teacher.full_name if sheet.teacher else "No teacher assigned" }}</div></div>
+  </div>
+  <div class="table-wrap">
+    <table class="table table--stack marks-table">
+      <thead><tr><th style="width:70px">Roll</th><th>Student</th><th class="num">Marks</th><th>Status</th><th>Remarks</th></tr></thead>
+      <tbody>
+        {% for row in rows %}
+          {% set record = row.record %}
+          <tr class="{{ 'is-absent' if record and record.status.value == 'ABSENT' }}">
+            <td data-label="Roll" class="num">{{ row.enrollment.roll_no or "—" }}</td>
+            <td data-label="Student">
+              <span class="row-title">{{ row.enrollment.student.full_name }}</span>
+              <span class="sub">{{ row.enrollment.student.admission_no }}</span>
+            </td>
+            <td data-label="Marks" class="num">
+              {% if record and record.marks_obtained is not none %}
+                <strong>{{ record.marks_obtained }}</strong> / {{ sheet.exam_subject.max_marks }}
+              {% else %}
+                <span class="muted">—</span>
+              {% endif %}
+            </td>
+            <td data-label="Status">{{ status_badge(record.status) if record else status_badge("ABSENT") }}</td>
+            <td data-label="Remarks" class="small">{{ record.remarks if record and record.remarks else "—" }}</td>
+          </tr>
+        {% else %}
+          <tr><td colspan="5" class="muted">No active students are enrolled in this section.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% if sheet.remarks %}
+    <div class="card__foot"><strong class="small">Note:</strong> <span class="small">{{ sheet.remarks }}</span></div>
+  {% endif %}
+</section>
+{% endblock %}

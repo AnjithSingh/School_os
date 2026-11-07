@@ -1,0 +1,21 @@
+{% extends "layouts/base.html" %}
+{% from "macros/icons.html" import icon %}
+
+{% block body %}
+<div class="shell">
+  {% include "partials/sidebar.html" %}
+  <div class="main">
+    {% include "partials/topbar.html" %}
+    <main class="content {% block content_class %}{% endblock %}" id="main-content" tabindex="-1">
+      {% include "partials/flash.html" %}
+      {% block content %}{% endblock %}
+    </main>
+    <footer class="foot">
+      {{ school.name if school else 'School OS' }} · {{ current_session.name if current_session else 'School OS' }}
+      · <a href="{{ url_for('auth.account_profile') }}">Account</a>
+      · <a href="{{ url_for('auth.change_password') }}">Password</a>
+      · v{{ app_version }}
+    </footer>
+  </div>
+</div>
+{% endblock %}

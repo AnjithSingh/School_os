@@ -1,0 +1,63 @@
+{% extends "layouts/app.html" %}
+{% from "macros/ui.html" import page_head, field, empty %}
+{% from "macros/icons.html" import icon %}
+
+{% block title %}Study material · {{ school.name }}{% endblock %}
+
+{% block content %}
+{{ page_head("Study material", "Upload notes, worksheets and references for the classes you teach. Published material is visible to students and guardians.") }}
+
+<div class="grid grid--sidebar">
+  <section class="card card--flush">
+    <div class="card__head">
+      <div><h2>Published material</h2><div class="sub">{{ rows|length }} item{{ "" if rows|length == 1 else "s" }} this year</div></div>
+    </div>
+    {% if rows %}
+      <div class="table-wrap">
+        <table class="table table--stack">
+          <thead><tr><th>Title</th><th>Class</th><th>Subject</th><th>Uploaded</th><th class="num"></th></tr></thead>
+          <tbody>
+            {% for item in rows %}
+              <tr>
+                <td data-label="Title">
+                  <span class="row-title">{{ item.title }}</span>
+                  {% if item.description %}<span class="sub">{{ item.description|truncate(110) }}</span>{% endif %}
+                </td>
+                <td data-label="Class">{{ item.school_class.name if item.school_class else "—" }}{% if item.section %} · {{ item.section.name }}{% endif %}</td>
+                <td data-label="Subject" class="small">{{ item.subject.name if item.subject else "—" }}</td>
+                <td data-label="Uploaded" class="small">{{ item.created_at|dt }}</td>
+                <td data-label="" class="num">
+                  {% if item.file %}
+                    <a class="btn btn--quiet btn--sm" href="{{ url_for('files.serve', file_uuid=item.file.uuid) }}">{{ icon("download", 14) }} Open</a>
+                  {% else %}
+                    <span class="muted small">No file</span>
+                  {% endif %}
+                </td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    {% else %}
+      {{ empty("No material yet", "Upload the first worksheet or reference document using the form alongside.", "book") }}
+    {% endif %}
+  </section>
+
+  <section class="card card--pad">
+    <h2 class="mb-1">Upload material</h2>
+    <p class="muted small">Choose a class and optionally a section. Leave the section blank to share with every section of that class.</p>
+    <form method="post" enctype="multipart/form-data" novalidate>
+      {{ form.hidden_tag() }}
+      <div class="stack">
+        {{ field(form.school_class_id) }}
+        {{ field(form.section_id) }}
+        {{ field(form.subject_id) }}
+        {{ field(form.title, placeholder="e.g. Trigonometry practice set") }}
+        {{ field(form.description) }}
+        {{ field(form.file, hint="PDF, DOCX, PPTX, XLSX or image up to the school limit.") }}
+        <button class="btn btn--primary btn--block" type="submit">{{ icon("upload", 16) }} Publish material</button>
+      </div>
+    </form>
+  </section>
+</div>
+{% endblock %}

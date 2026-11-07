@@ -1,0 +1,84 @@
+{% extends "layouts/app.html" %}
+{% from "macros/ui.html" import page_head, status_badge, empty %}
+{% from "macros/icons.html" import icon %}
+
+{% block title %}{{ homework.title }} · {{ school.name }}{% endblock %}
+
+{% block content %}
+<div class="breadcrumb">
+  <a href="{{ url_for('admin_homework.index') }}">Homework</a>
+  <span>{{ homework.title }}</span>
+</div>
+
+{% call page_head(homework.title, (homework.subject.name if homework.subject else "") ~ " · " ~ (homework.section.label if homework.section else "") ~ " · due " ~ (homework.due_at|dt if homework.due_at else "no due date")) %}
+  {{ status_badge(homework.status) }}
+  {% if homework.attachment %}
+    <a class="btn btn--ghost" href="{{ url_for('files.serve', file_uuid=homework.attachment.uuid) }}">{{ icon("download", 16) }} Attachment</a>
+  {% endif %}
+{% endcall %}
+
+<div class="grid grid--sidebar">
+  <section class="card card--flush">
+    <div class="card__head">
+      <div><h2>Submissions</h2><div class="sub">{{ submissions|length }} of {{ homework.section.enrollments.count() if homework.section else 0 }} students</div></div>
+    </div>
+    {% if homework.section %}
+      <div class="table-wrap">
+        <table class="table table--stack">
+          <thead><tr><th>Student</th><th class="num">Roll</th><th>Submitted</th><th>Status</th><th>Review</th><th class="num"></th></tr></thead>
+          <tbody>
+            {% for enrollment in homework.section.enrollments.all() %}
+              {% set submission = submissions.get(enrollment.student_id) %}
+              <tr>
+                <td data-label="Student">
+                  <span class="row-title">{{ enrollment.student.full_name if enrollment.student else "—" }}</span>
+                  <span class="sub">{{ enrollment.student.admission_no if enrollment.student else "" }}</span>
+                </td>
+                <td data-label="Roll" class="num">{{ enrollment.roll_no or "—" }}</td>
+                <td data-label="Submitted" class="small">{{ submission.submitted_at|dt if submission and submission.submitted_at else "Not submitted" }}</td>
+                <td data-label="Status">{{ status_badge(submission.status) if submission else status_badge("PENDING") }}</td>
+                <td data-label="Review" class="small">
+                  {% if submission and submission.marks is not none %}<strong>{{ submission.marks }}</strong>{% if homework.max_marks %} / {{ homework.max_marks }}{% endif %}{% endif %}
+                  {% if submission and submission.remarks %}<span class="sub">{{ submission.remarks }}</span>{% endif %}
+                </td>
+                <td data-label="" class="num">
+                  {% if submission and submission.file %}
+                    <a class="btn btn--quiet btn--sm" href="{{ url_for('files.serve', file_uuid=submission.file.uuid) }}">File</a>
+                  {% endif %}
+                </td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    {% else %}
+      {{ empty("Section missing", "This assignment is not linked to an active section.", "alert") }}
+    {% endif %}
+  </section>
+
+  <div class="stack">
+    <section class="card card--pad">
+      <h2 class="mb-2">Instructions</h2>
+      <p class="small">{{ homework.description or "No instructions were provided." }}</p>
+      <hr>
+      <dl class="dl">
+        <dt>Subject</dt><dd>{{ homework.subject.name if homework.subject else "—" }}</dd>
+        <dt>Section</dt><dd>{{ homework.section.label if homework.section else "—" }}</dd>
+        <dt>Teacher</dt><dd>{{ homework.teacher.full_name if homework.teacher else "—" }}</dd>
+        <dt>Assigned</dt><dd>{{ homework.assigned_on|d }}</dd>
+        <dt>Due</dt><dd>{{ homework.due_at|dt if homework.due_at else "—" }}</dd>
+        <dt>Maximum marks</dt><dd>{{ homework.max_marks or "Not graded" }}</dd>
+      </dl>
+    </section>
+
+    <section class="card card--pad">
+      <h2 class="mb-1">Completion</h2>
+      {% set total = homework.section.enrollments.count() if homework.section else 0 %}
+      {% set submitted = submissions|length %}
+      <div class="between mb-1"><span class="muted small">Submitted</span><span class="num">{{ submitted }} / {{ total }}</span></div>
+      <div class="bar"><span style="width: {{ (submitted / total * 100) if total else 0 }}%"></span></div>
+      <div class="tiny muted mt-1">{{ ((submitted / total * 100) if total else 0)|percent }} of the class has submitted.</div>
+    </section>
+  </div>
+</div>
+{% endblock %}

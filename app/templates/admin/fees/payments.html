@@ -1,0 +1,52 @@
+{% extends "layouts/app.html" %}
+{% from "macros/ui.html" import page_head, status_badge, pagination, empty %}
+{% from "macros/icons.html" import icon %}
+
+{% block title %}Payments · {{ school.name }}{% endblock %}
+
+{% block content %}
+{{ page_head("Payment history", "Every receipt issued this academic year. Reversals are shown as separate rows and never delete the original.") }}
+
+<section class="card card--flush">
+  {% if page.items %}
+    <div class="table-wrap">
+      <table class="table table--stack">
+        <thead><tr><th>Receipt</th><th>Student</th><th>Fee head</th><th class="num">Amount</th><th>Method</th><th>Date</th><th>Collected by</th><th>Status</th><th class="num"></th></tr></thead>
+        <tbody>
+          {% for payment in page.items %}
+            <tr>
+              <td data-label="Receipt" class="mono small">
+                {{ payment.receipt_no }}
+                {% if payment.reversal_of_id %}<span class="sub">Reversal of #{{ payment.reversal_of_id }}</span>{% endif %}
+              </td>
+              <td data-label="Student">
+                <span class="row-title">{{ payment.student.full_name if payment.student else "—" }}</span>
+                <span class="sub">{{ payment.student.admission_no if payment.student else "" }}</span>
+              </td>
+              <td data-label="Fee head" class="small">{{ payment.student_fee.fee_structure.category.name if payment.student_fee and payment.student_fee.fee_structure and payment.student_fee.fee_structure.category else "—" }}</td>
+              <td data-label="Amount" class="num"><strong>{{ payment.amount_paise|money }}</strong></td>
+              <td data-label="Method" class="small">{{ payment.method.value|replace("_", " ")|title }}</td>
+              <td data-label="Date" class="small">{{ payment.paid_at|dt }}</td>
+              <td data-label="Collected by" class="small">{{ payment.collected_by.full_name if payment.collected_by else "—" }}</td>
+              <td data-label="Status">{{ status_badge(payment.status) }}</td>
+              <td data-label="" class="num nowrap">
+                <a class="btn btn--quiet btn--sm" href="{{ url_for('admin_fees.receipt', payment_id=payment.id) }}">Receipt</a>
+                {% if payment.status.value == "SUCCESS" and has_permission("fees.collect") %}
+                  <form class="inline-form" method="post" action="{{ url_for('admin_fees.reverse', payment_id=payment.id) }}" data-confirm="Reverse receipt {{ payment.receipt_no }}?">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <input type="hidden" name="reason" value="Reversed from payment history">
+                    <button class="btn btn--quiet btn--sm" type="submit">Reverse</button>
+                  </form>
+                {% endif %}
+              </td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    <div class="card__foot">{{ pagination(page) }}</div>
+  {% else %}
+    {{ empty("No payments yet", "Receipts appear here as soon as the office collects a fee.", "credit-card", url_for('admin_fees.index'), "Open fees") }}
+  {% endif %}
+</section>
+{% endblock %}

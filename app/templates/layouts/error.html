@@ -1,0 +1,22 @@
+{% extends "layouts/base.html" %}
+{% from "macros/icons.html" import icon %}
+
+{% block body %}
+<main id="main-content" class="auth-main" style="min-height:100vh;display:grid;place-items:center;padding:2rem 1rem">
+  <div style="width:100%;max-width:520px">
+    <div class="card" style="padding:2rem;text-align:center">
+      <div class="empty__icon" style="margin:0 auto 1rem">{{ icon("alert", 24) }}</div>
+      <div class="eyebrow">{% block code %}{% endblock %}</div>
+      <h1 style="font-size:1.4rem">{% block heading %}{% endblock %}</h1>
+      <p class="muted">{% block message %}{% endblock %}</p>
+      {% block actions %}
+        <div class="cluster" style="justify-content:center">
+          <a class="btn btn--primary" href="{{ url_for('auth.index') }}">Go to your home page</a>
+          <a class="btn btn--ghost" href="{{ url_for('auth.login') }}">Sign in</a>
+        </div>
+      {% endblock %}
+    </div>
+    <p class="foot" style="padding-top:1rem">{{ school.name if school else 'School OS' }}</p>
+  </div>
+</main>
+{% endblock %}

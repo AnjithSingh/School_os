@@ -1,0 +1,66 @@
+{% extends "layouts/app.html" %}
+{% from "macros/ui.html" import page_head, status_badge, empty %}
+{% from "macros/icons.html" import icon %}
+
+{% block title %}Examinations · {{ school.name }}{% endblock %}
+
+{% block content %}
+{% set enrollment = student.enrollment_for(current_session.id) if current_session else None %}
+{% set class_id = enrollment.section.school_class_id if enrollment else None %}
+
+{% call page_head("Examinations", (current_session.name if current_session else "Current year") ~ " · schedules for " ~ (enrollment.section.label if enrollment else "your class")) %}
+  <a class="btn btn--ghost" href="{{ url_for('student.results') }}">{{ icon("award", 16) }} Published results</a>
+{% endcall %}
+
+{% if rows %}
+  <div class="stack">
+    {% for exam in rows %}
+      <section class="card card--flush">
+        <div class="card__head">
+          <div>
+            <h2 class="mb-0">{{ exam.name }}</h2>
+            <div class="sub">
+              {{ exam.exam_type.name if exam.exam_type else "Examination" }}
+              {% if exam.start_date %} · {{ exam.start_date|d }}{% if exam.end_date %} – {{ exam.end_date|d }}{% endif %}{% endif %}
+              {% if exam.result_date %} · results {{ exam.result_date|d }}{% endif %}
+            </div>
+          </div>
+          {{ status_badge(exam.status) }}
+        </div>
+        {% if exam.instructions %}
+          <div class="card__body"><p class="small mb-0">{{ exam.instructions }}</p></div>
+        {% endif %}
+        {% set subjects = exam.subjects|selectattr("school_class_id", "equalto", class_id)|list %}
+        {% if subjects %}
+          <div class="table-wrap">
+            <table class="table table--compact table--stack">
+              <thead><tr><th>Subject</th><th>Date</th><th>Time</th><th class="num">Maximum</th><th class="num">Passing</th><th>Room</th></tr></thead>
+              <tbody>
+                {% for item in subjects|sort(attribute="exam_date") %}
+                  <tr>
+                    <td data-label="Subject"><span class="row-title">{{ item.subject.name if item.subject else "—" }}</span></td>
+                    <td data-label="Date" class="small">{{ item.exam_date|d if item.exam_date else "—" }}</td>
+                    <td data-label="Time" class="small">{{ item.start_time|t if item.start_time else "—" }}{% if item.end_time %} – {{ item.end_time|t }}{% endif %}</td>
+                    <td data-label="Maximum" class="num">{{ item.max_marks }}</td>
+                    <td data-label="Passing" class="num">{{ item.pass_marks }}</td>
+                    <td data-label="Room" class="small">{{ item.room or "—" }}</td>
+                  </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        {% else %}
+          <div class="card__body"><p class="muted small mb-0">The subject schedule for your class has not been published yet.</p></div>
+        {% endif %}
+        {% if exam.status.value == "PUBLISHED" %}
+          <div class="card__foot">
+            <a class="btn btn--ghost btn--sm" href="{{ url_for('student.results') }}">View my results</a>
+          </div>
+        {% endif %}
+      </section>
+    {% endfor %}
+  </div>
+{% else %}
+  {{ empty("No examinations scheduled", "Examinations for your class will appear here once the school publishes them.", "clipboard") }}
+{% endif %}
+{% endblock %}

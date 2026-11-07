@@ -1,0 +1,33 @@
+{% extends "layouts/app.html" %}
+{% from "macros/ui.html" import field, page_head %}
+{% from "macros/icons.html" import icon %}
+
+{% block title %}{{ "Edit" if user else "New" }} user · {{ school.name }}{% endblock %}
+
+{% block content %}
+<div class="breadcrumb">
+  <a href="{{ url_for('admin.users') }}">Users</a>
+  <span>{{ "Edit" if user else "New" }}</span>
+</div>
+{{ page_head(("Edit " ~ user.full_name) if user else "New user account",
+   "A temporary password forces a change at first sign-in." if not user else "Changing the password forces a change at next sign-in.") }}
+
+<form method="post" novalidate>
+  {{ form.hidden_tag() }}
+  <section class="card card--pad">
+    <div class="form-grid">
+      {{ field(form.full_name) }}
+      {{ field(form.username) }}
+      {{ field(form.email) }}
+      {{ field(form.phone) }}
+      {{ field(form.role) }}
+      {{ field(form.password, hint="Leave blank to keep the current password." if user else "Leave blank to use the default temporary password.") }}
+    </div>
+    <div class="mt-2">{{ field(form.is_active) }}</div>
+    <div class="form-actions">
+      {{ form.submit(class_="btn btn--primary") }}
+      <a class="btn btn--ghost" href="{{ url_for('admin.users') }}">Cancel</a>
+    </div>
+  </section>
+</form>
+{% endblock %}

@@ -1,0 +1,19 @@
+{% extends "layouts/auth.html" %}
+{% from "macros/ui.html" import field %}
+
+{% block title %}Set a new password · School OS{% endblock %}
+
+{% block content %}
+<div class="card">
+  <h2>Set a new password</h2>
+  <p class="sub">This reset link can be used once and expires shortly.</p>
+  <form method="post" novalidate>
+    {{ form.hidden_tag() }}
+    <div class="stack">
+      {{ field(form.password, autocomplete="new-password") }}
+      {{ field(form.confirm, autocomplete="new-password") }}
+      {{ form.submit(class_="btn btn--primary btn--block") }}
+    </div>
+  </form>
+</div>
+{% endblock %}

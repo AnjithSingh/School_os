@@ -1,0 +1,141 @@
+{% extends "layouts/app.html" %}
+{% from "macros/ui.html" import page_head, field, status_badge, empty, progress_bar %}
+{% from "macros/icons.html" import icon %}
+
+{% block title %}Fees · {{ school.name }}{% endblock %}
+
+{% block content %}
+{{ page_head("Fees", "Fee heads, class-wise structures and collection for " ~ (session.name if session else "the current year") ~ ".") }}
+
+<div class="grid grid--4 mb-2">
+  <div class="stat"><div class="stat__label">Billed this year</div><div class="stat__value">{{ finance.billed|money }}</div><div class="stat__hint">net of concessions</div></div>
+  <div class="stat stat--success"><div class="stat__label">Collected</div><div class="stat__value">{{ finance.paid|money }}</div><div class="stat__hint">{{ finance.collection_rate|percent }} of billing</div></div>
+  <div class="stat stat--danger"><div class="stat__label">Outstanding</div><div class="stat__value">{{ finance.outstanding|money }}</div><div class="stat__hint">including overdue balances</div></div>
+  <div class="stat stat--accent"><div class="stat__label">Payments</div><div class="stat__value">{{ finance.collected|money }}</div><div class="stat__hint">received against receipts</div></div>
+</div>
+
+<div class="grid grid--sidebar mb-2">
+  <section class="card card--flush">
+    <div class="card__head">
+      <div><h2>Fee structures</h2><div class="sub">{{ structures|length }} class and installment rows</div></div>
+      <a class="btn btn--ghost btn--sm" href="{{ url_for('admin_fees.payments') }}">Payment history</a>
+    </div>
+    {% if structures %}
+      <div class="table-wrap">
+        <table class="table table--compact table--stack">
+          <thead><tr><th>Class</th><th>Fee head</th><th class="num">Installment</th><th class="num">Amount</th><th>Due</th><th>Status</th></tr></thead>
+          <tbody>
+            {% for row in structures %}
+              <tr>
+                <td data-label="Class">{{ row.school_class.name if row.school_class else "—" }}</td>
+                <td data-label="Fee head"><span class="row-title">{{ row.category.name if row.category else "—" }}</span><span class="sub">{{ row.category.frequency.value|title if row.category else "" }}</span></td>
+                <td data-label="Installment" class="num">#{{ row.installment_no }}</td>
+                <td data-label="Amount" class="num">{{ row.amount_paise|money }}</td>
+                <td data-label="Due" class="small">{{ row.due_date|d if row.due_date else "—" }}</td>
+                <td data-label="Status">{{ status_badge("ACTIVE" if row.is_active else "INACTIVE") }}</td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    {% else %}
+      {{ empty("No fee structures", "Create a fee head and a class-wise structure to start billing.", "credit-card") }}
+    {% endif %}
+  </section>
+
+  <div class="stack">
+    <section class="card card--pad">
+      <h2 class="mb-2">Fee heads</h2>
+      {% if categories %}
+        <div class="stack small mb-2">
+          {% for category in categories %}
+            <div class="between">
+              <span><strong>{{ category.name }}</strong><span class="sub">{{ category.code }} · {{ category.frequency.value|title }}</span></span>
+              {% if category.is_optional %}<span class="badge">Optional</span>{% endif %}
+            </div>
+          {% endfor %}
+        </div>
+      {% else %}
+        <p class="muted small">No fee heads yet.</p>
+      {% endif %}
+      <details>
+        <summary class="small" style="cursor:pointer;font-weight:600">Add a fee head</summary>
+        <form method="post" action="{{ url_for('admin_fees.create_category') }}" class="mt-2" novalidate>
+          {{ category_form.hidden_tag() }}
+          <div class="stack">
+            {{ field(category_form.code, placeholder="TUITION") }}
+            {{ field(category_form.name, placeholder="Tuition fee") }}
+            {{ field(category_form.frequency) }}
+            {{ field(category_form.description) }}
+            <button class="btn btn--primary btn--sm" type="submit">Save fee head</button>
+          </div>
+        </form>
+      </details>
+    </section>
+
+    <section class="card card--pad">
+      <h2 class="mb-2">Class fee structure</h2>
+      <form method="post" action="{{ url_for('admin_fees.create_structure') }}" novalidate>
+        {{ structure_form.hidden_tag() }}
+        <div class="stack">
+          {{ field(structure_form.school_class_id) }}
+          {{ field(structure_form.fee_category_id) }}
+          <div class="form-grid">
+            {{ field(structure_form.installment_no) }}
+            {{ field(structure_form.amount) }}
+          </div>
+          {{ field(structure_form.due_date) }}
+          <button class="btn btn--primary btn--block" type="submit">Save structure</button>
+        </div>
+      </form>
+    </section>
+
+    <section class="card card--pad">
+      <h2 class="mb-1">Generate student fees</h2>
+      <p class="muted small">Creates one bill per active student in the section, applying approved concessions.</p>
+      <form method="post" action="{{ url_for('admin_fees.generate') }}" novalidate>
+        {{ generate_form.hidden_tag() }}
+        <div class="stack">
+          {{ field(generate_form.section_id) }}
+          <button class="btn btn--accent btn--block" type="submit">Generate for section</button>
+        </div>
+      </form>
+    </section>
+  </div>
+</div>
+
+<section class="card card--flush">
+  <div class="card__head">
+    <div><h2>Outstanding balances</h2><div class="sub">Oldest due dates first</div></div>
+    <a class="btn btn--quiet btn--sm" href="{{ url_for('admin.reports') }}">Collection report</a>
+  </div>
+  {% if dues %}
+    <div class="table-wrap">
+      <table class="table table--stack">
+        <thead><tr><th>Student</th><th>Fee head</th><th class="num">Net</th><th class="num">Paid</th><th class="num">Balance</th><th>Due</th><th>Status</th><th class="num"></th></tr></thead>
+        <tbody>
+          {% for row in dues %}
+            <tr>
+              <td data-label="Student">
+                <span class="row-title">{{ row.student.full_name if row.student else "—" }}</span>
+                <span class="sub">{{ row.student.admission_no if row.student else "" }}</span>
+              </td>
+              <td data-label="Fee head">{{ row.fee_structure.category.name if row.fee_structure and row.fee_structure.category else "—" }}</td>
+              <td data-label="Net" class="num">{{ row.net_paise|money }}</td>
+              <td data-label="Paid" class="num">{{ row.paid_paise|money }}</td>
+              <td data-label="Balance" class="num"><strong class="text-danger">{{ row.balance_paise|money }}</strong></td>
+              <td data-label="Due" class="small">{{ row.due_date|d if row.due_date else "—" }}</td>
+              <td data-label="Status">{{ status_badge(row.status) }}</td>
+              <td data-label="" class="num">
+                <a class="btn btn--quiet btn--sm" href="{{ url_for('admin_fees.student_ledger', student_id=row.student_id) }}">Collect</a>
+              </td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  {% else %}
+    {{ empty("No outstanding balances", "Every generated bill is settled. New bills appear here as they fall due.", "check") }}
+  {% endif %}
+</section>
+{% endblock %}

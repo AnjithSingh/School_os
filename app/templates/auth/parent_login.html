@@ -1,0 +1,34 @@
+{% extends "layouts/auth.html" %}
+{% from "macros/ui.html" import field %}
+
+{% block title %}Parent sign in · {{ school.name if school else 'School OS' }}{% endblock %}
+
+{% block aside %}
+  <h1>Your child's school day, in one view.</h1>
+  <p>Attendance, homework, results, report cards and fee receipts — for every child linked to your account.</p>
+  <ul class="auth-aside__points">
+    <li>Each child is verified by the school office</li>
+    <li>See exactly what the school has recorded</li>
+    <li>Download report cards and receipts at any time</li>
+  </ul>
+{% endblock %}
+
+{% block content %}
+<div class="card">
+  <h2>Parent sign in</h2>
+  <p class="sub">Use the account the school created for you.</p>
+  <form method="post" novalidate>
+    {{ form.hidden_tag() }}
+    <div class="stack">
+      {{ field(form.identifier, autocomplete="username", placeholder="Username or email") }}
+      {{ field(form.password, autocomplete="current-password") }}
+      <label class="check">{{ form.remember() }} <span>{{ form.remember.label.text }}</span></label>
+      {{ form.submit(class_="btn btn--primary btn--block") }}
+    </div>
+  </form>
+  <p class="auth-switch">
+    School staff? <a href="{{ url_for('auth.login') }}">Staff sign in</a><br>
+    Student? <a href="{{ url_for('auth.student_login') }}">Student sign in</a>
+  </p>
+</div>
+{% endblock %}

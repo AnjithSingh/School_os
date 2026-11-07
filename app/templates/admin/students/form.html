@@ -1,0 +1,74 @@
+{% extends "layouts/app.html" %}
+{% from "macros/ui.html" import field, page_head %}
+{% from "macros/icons.html" import icon %}
+
+{% block title %}{{ "Edit student" if student else "Admit student" }} · {{ school.name }}{% endblock %}
+
+{% block content %}
+<div class="breadcrumb">
+  <a href="{{ url_for('admin_students.index') }}">Students</a>
+  <span>{{ "Edit" if student else "New admission" }}</span>
+</div>
+{{ page_head(("Edit " ~ student.full_name) if student else "Admit a student",
+   "The admission number is generated automatically and can be overridden." if not student else "Changes are recorded in the audit log.") }}
+
+<form method="post" enctype="multipart/form-data" novalidate>
+  {{ form.hidden_tag() }}
+
+  <section class="card card--pad mb-2">
+    <h2 class="mb-2">Student</h2>
+    <div class="form-grid">
+      {{ field(form.first_name) }}
+      {{ field(form.last_name) }}
+      {{ field(form.admission_no, hint="Leave blank to auto-generate.") }}
+      {{ field(form.admission_date) }}
+      {{ field(form.dob) }}
+      {{ field(form.gender) }}
+      {{ field(form.blood_group) }}
+      {{ field(form.category) }}
+    </div>
+  </section>
+
+  <section class="card card--pad mb-2">
+    <h2 class="mb-2">Placement</h2>
+    <div class="form-grid">
+      {{ field(form.class_id) }}
+      <div class="field">
+        {{ form.section_id.label }}
+        {{ form.section_id(class_="select", **({"aria-invalid": "true"} if form.section_id.errors else {})) }}
+        {% for error in form.section_id.errors %}<div class="field__error">{{ error }}</div>{% endfor %}
+      </div>
+      {{ field(form.roll_no) }}
+      {{ field(form.photo, hint="JPG or PNG, up to 10 MB.") }}
+    </div>
+  </section>
+
+  <section class="card card--pad mb-2">
+    <h2 class="mb-2">Contact</h2>
+    <div class="form-grid">
+      {{ field(form.phone) }}
+      {{ field(form.email) }}
+      {{ field(form.address, cls="span-2") }}
+      {{ field(form.city) }}
+      {{ field(form.state) }}
+      {{ field(form.pincode) }}
+    </div>
+  </section>
+
+  <section class="card card--pad mb-2">
+    <h2 class="mb-2">Emergency &amp; history</h2>
+    <div class="form-grid">
+      {{ field(form.emergency_name) }}
+      {{ field(form.emergency_phone) }}
+      {{ field(form.previous_school) }}
+      {{ field(form.previous_class) }}
+      {{ field(form.notes, cls="span-2") }}
+    </div>
+  </section>
+
+  <div class="btn-row">
+    {{ form.submit(class_="btn btn--primary") }}
+    <a class="btn btn--ghost" href="{{ url_for('admin_students.profile', student_id=student.id) if student else url_for('admin_students.index') }}">Cancel</a>
+  </div>
+</form>
+{% endblock %}

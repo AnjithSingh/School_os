@@ -1,0 +1,129 @@
+{% from "macros/icons.html" import icon %}
+
+{% macro field(f, hint=None, cls="", placeholder=None, autocomplete=None) -%}
+  {% set widget = f.type %}
+  <div class="field {{ cls }}">
+    {{ f.label }}
+    {% if widget == "SelectField" or widget == "SelectMultipleField" %}
+      {{ f(class_="select", **({"aria-invalid": "true"} if f.errors else {})) }}
+    {% elif widget == "TextAreaField" %}
+      {{ f(class_="textarea", rows=4, **({"aria-invalid": "true"} if f.errors else {})) }}
+    {% elif widget == "BooleanField" %}
+      <label class="check">{{ f() }} <span>{{ f.label.text }}</span></label>
+    {% elif widget == "FileField" %}
+      {{ f(class_="input", **({"aria-invalid": "true"} if f.errors else {})) }}
+    {% else %}
+      {{ f(class_="input", placeholder=placeholder or "", autocomplete=autocomplete or "off", **({"aria-invalid": "true"} if f.errors else {})) }}
+    {% endif %}
+    {% if hint %}<div class="field__hint">{{ hint }}</div>{% endif %}
+    {% for error in f.errors %}<div class="field__error">{{ error }}</div>{% endfor %}
+  </div>
+{%- endmacro %}
+
+{% macro check(f, hint=None) -%}
+  <div class="field">
+    <label class="check">{{ f() }} <span>{{ f.label.text }}</span></label>
+    {% if hint %}<div class="field__hint">{{ hint }}</div>{% endif %}
+    {% for error in f.errors %}<div class="field__error">{{ error }}</div>{% endfor %}
+  </div>
+{%- endmacro %}
+
+{% macro page_head(title, subtitle=None, eyebrow=None) -%}
+  <div class="page-head">
+    <div>
+      {% if eyebrow %}<div class="eyebrow">{{ eyebrow }}</div>{% endif %}
+      <h1>{{ title }}</h1>
+      {% if subtitle %}<p>{{ subtitle }}</p>{% endif %}
+    </div>
+    {% if caller is defined and caller %}<div class="page-head__actions">{{ caller() }}</div>{% endif %}
+  </div>
+{%- endmacro %}
+
+{% macro badge(text, tone="neutral", dot=False) -%}
+  <span class="badge badge--{{ tone }}">{% if dot %}<span aria-hidden="true">●</span>{% endif %}{{ text }}</span>
+{%- endmacro %}
+
+{% macro status_badge(value) -%}
+  {% set raw = (value.value if value.value is defined else value)|string %}
+  {% set tones = {
+    "PRESENT": "success", "ABSENT": "danger", "LATE": "warning", "HALF_DAY": "info",
+    "EXCUSED": "neutral", "PASS": "success", "FAIL": "danger", "COMPARTMENT": "warning",
+    "PENDING": "warning", "PARTIAL": "info", "PAID": "success", "WAIVED": "neutral",
+    "CANCELLED": "neutral", "APPROVED": "success", "REJECTED": "danger",
+    "SUBMITTED": "info", "REVIEWED": "success", "RETURNED": "warning",
+    "PUBLISHED": "success", "DRAFT": "neutral", "SCHEDULED": "info", "MARKS_ENTRY": "warning",
+    "REOPENED": "warning", "ARCHIVED": "neutral", "ACTIVE": "success", "INACTIVE": "neutral",
+    "TRANSFERRED": "warning", "ALUMNI": "info", "VERIFIED": "success", "REVOKED": "danger",
+    "SUCCESS": "success", "REVERSED": "danger", "ON_LEAVE": "warning", "RESIGNED": "neutral",
+    "RETIRED": "neutral"
+  } %}
+  {{ badge(raw.replace("_", " ").title(), tones.get(raw, "neutral")) }}
+{%- endmacro %}
+
+{% macro stat(label, value, hint=None, tone="primary", icon_name="chart") -%}
+  <div class="stat stat--{{ tone }}">
+    <div class="between">
+      <div class="stat__label">{{ label }}</div>
+      <span class="text-{{ 'primary' if tone == 'primary' else tone }}" aria-hidden="true">{{ icon(icon_name, 20) }}</span>
+    </div>
+    <div class="stat__value">{{ value }}</div>
+    {% if hint %}<div class="stat__hint">{{ hint }}</div>{% endif %}
+  </div>
+{%- endmacro %}
+
+{% macro avatar(name, image=None, size="") -%}
+  <span class="avatar {{ size }}">
+    {% if image %}<img src="{{ image }}" alt="">{% else %}{{ name|initials }}{% endif %}
+  </span>
+{%- endmacro %}
+
+{% macro empty(title, text=None, icon_name="info", action_url=None, action_label=None) -%}
+  <div class="empty">
+    <div class="empty__icon">{{ icon(icon_name, 24) }}</div>
+    <h3>{{ title }}</h3>
+    {% if text %}<p>{{ text }}</p>{% endif %}
+    {% if action_url and action_label %}
+      <a class="btn btn--primary btn--sm" href="{{ action_url }}">{{ action_label }}</a>
+    {% endif %}
+  </div>
+{%- endmacro %}
+
+{% macro pagination(page) -%}
+  {% if page and page.pages > 1 %}
+    <nav class="between mt-2" aria-label="Pagination">
+      <div class="small muted">
+        Page {{ page.page }} of {{ page.pages }} · {{ page.total }} records
+      </div>
+      <div class="cluster">
+        {% if page.has_prev %}
+          <a class="btn btn--ghost btn--sm" href="{{ url_with_page(page.prev_num) }}" rel="prev">Previous</a>
+        {% endif %}
+        {% for number in page.iter_pages(left_edge=1, right_edge=1, left_current=2, right_current=2) %}
+          {% if number %}
+            <a class="pill {{ 'is-active' if number == page.page }}" href="{{ url_with_page(number) }}">{{ number }}</a>
+          {% else %}
+            <span class="muted small">…</span>
+          {% endif %}
+        {% endfor %}
+        {% if page.has_next %}
+          <a class="btn btn--ghost btn--sm" href="{{ url_with_page(page.next_num) }}" rel="next">Next</a>
+        {% endif %}
+      </div>
+    </nav>
+  {% endif %}
+{%- endmacro %}
+
+{% macro tabs(items, current) -%}
+  <div class="tabs" role="tablist">
+    {% for value, label, url in items %}
+      <a class="tab {{ 'is-active' if value == current }}" href="{{ url }}" role="tab">{{ label }}</a>
+    {% endfor %}
+  </div>
+{%- endmacro %}
+
+{% macro progress_bar(value, tone="") -%}
+  {% set pct = [0, [value or 0, 100]|min]|max %}
+  <div class="bar {{ 'bar--' ~ tone if tone }}" role="progressbar" aria-valuenow="{{ pct }}" aria-valuemin="0" aria-valuemax="100">
+    <span style="width: {{ pct }}%"></span>
+  </div>
+{%- endmacro %}

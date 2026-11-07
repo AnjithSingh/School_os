@@ -1,0 +1,55 @@
+{% extends "layouts/app.html" %}
+{% from "macros/ui.html" import page_head, progress_bar, empty, status_badge %}
+{% from "macros/icons.html" import icon %}
+
+{% block title %}Attendance · {{ school.name }}{% endblock %}
+
+{% block content %}
+{% call page_head("Attendance", "Daily register for " ~ (on_date|d("long")) ~ ".") %}
+  <form class="cluster" method="get">
+    <input class="input" type="date" name="date" value="{{ on_date.isoformat() }}" aria-label="Date">
+    <button class="btn btn--ghost" type="submit">Show date</button>
+  </form>
+  <a class="btn btn--primary" href="{{ url_for('admin_attendance.mark', date=on_date.isoformat()) }}">{{ icon("check-square", 16) }} Mark attendance</a>
+{% endcall %}
+
+<div class="grid grid--4 mb-2">
+  <div class="stat"><div class="stat__label">Records marked</div><div class="stat__value">{{ overview.marked_total }}</div><div class="stat__hint">across {{ overview.sections|length }} sections</div></div>
+  <div class="stat stat--success"><div class="stat__label">Present</div><div class="stat__value">{{ overview.totals.PRESENT }}</div><div class="stat__hint">on time</div></div>
+  <div class="stat stat--danger"><div class="stat__label">Absent</div><div class="stat__value">{{ overview.totals.ABSENT }}</div><div class="stat__hint">not in school</div></div>
+  <div class="stat stat--accent"><div class="stat__label">Attendance rate</div><div class="stat__value">{{ overview.percentage|percent if overview.percentage is not none else "—" }}</div><div class="stat__hint">{{ overview.totals.LATE }} late · {{ overview.totals.HALF_DAY }} half day</div></div>
+</div>
+
+<section class="card card--flush">
+  <div class="card__head"><h2>Sections</h2><span class="sub">Select a section to edit its register</span></div>
+  <div class="table-wrap">
+    <table class="table table--stack">
+      <thead><tr><th>Section</th><th class="num">Enrolled</th><th class="num">Marked</th><th class="num">Present</th><th class="num">Absent</th><th>Rate</th><th class="num"></th></tr></thead>
+      <tbody>
+        {% for row in overview.sections %}
+          <tr>
+            <td data-label="Section"><span class="row-title">{{ row.section.label }}</span><span class="sub">{{ row.section.room or "No room" }}</span></td>
+            <td data-label="Enrolled" class="num">{{ row.section.enrollments.count() }}</td>
+            <td data-label="Marked" class="num">{{ row.summary.total }}</td>
+            <td data-label="Present" class="num">{{ row.summary.counts.PRESENT + row.summary.counts.LATE }}</td>
+            <td data-label="Absent" class="num">{{ row.summary.counts.ABSENT }}</td>
+            <td data-label="Rate" style="min-width:130px">
+              {% if row.summary.total %}
+                {{ progress_bar(row.summary.percentage or 0, "success" if (row.summary.percentage or 0) >= 90 else "warning" if (row.summary.percentage or 0) >= 75 else "danger") }}
+                <span class="tiny muted">{{ row.summary.percentage|percent }}</span>
+              {% else %}
+                <span class="badge badge--neutral">Not marked</span>
+              {% endif %}
+            </td>
+            <td data-label="" class="num">
+              <a class="btn btn--quiet btn--sm" href="{{ url_for('admin_attendance.mark', section_id=row.section.id, date=on_date.isoformat()) }}">{{ "Edit" if row.summary.total else "Mark" }}</a>
+            </td>
+          </tr>
+        {% else %}
+          <tr><td colspan="7" class="muted">No sections exist for this academic year.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</section>
+{% endblock %}

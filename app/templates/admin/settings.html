@@ -1,0 +1,149 @@
+{% extends "layouts/app.html" %}
+{% from "macros/ui.html" import field, page_head, status_badge %}
+{% from "macros/icons.html" import icon %}
+
+{% block title %}School settings · {{ school.name }}{% endblock %}
+
+{% block content %}
+{{ page_head("School settings", "Profile, branding, academic policy and the academic year calendar.") }}
+
+<div data-tab-group>
+  <div class="tabs" role="tablist">
+    <button class="tab" type="button" data-tab="profile" role="tab" aria-selected="true">Profile &amp; branding</button>
+    <button class="tab" type="button" data-tab="policy" role="tab" aria-selected="false">Academic policy</button>
+    <button class="tab" type="button" data-tab="years" role="tab" aria-selected="false">Academic years</button>
+    <button class="tab" type="button" data-tab="grading" role="tab" aria-selected="false">Grading</button>
+  </div>
+
+  <div data-tab-panel="profile">
+    <form method="post" novalidate>
+      {{ profile_form.hidden_tag() }}
+      <section class="card card--pad">
+        <h2 class="mb-2">School identity</h2>
+        <div class="form-grid">
+          {{ field(profile_form.name) }}
+          {{ field(profile_form.short_name) }}
+          {{ field(profile_form.address_line1, cls="span-2") }}
+          {{ field(profile_form.city) }}
+          {{ field(profile_form.state) }}
+          {{ field(profile_form.pincode) }}
+          {{ field(profile_form.phone) }}
+          {{ field(profile_form.email) }}
+          {{ field(profile_form.website) }}
+          {{ field(profile_form.principal_name) }}
+          {{ field(profile_form.affiliation_no) }}
+          {{ field(profile_form.motto) }}
+        </div>
+        <h2 class="mt-3 mb-2">Brand colours</h2>
+        <div class="form-grid">
+          {{ field(profile_form.primary_color, hint="Used for primary buttons and links. Hex value, e.g. #1D4E89.") }}
+          {{ field(profile_form.secondary_color, hint="Used for accents and highlights. Hex value, e.g. #B7791F.") }}
+        </div>
+        <div class="form-actions">{{ profile_form.save_profile(class_="btn btn--primary") }}</div>
+      </section>
+    </form>
+  </div>
+
+  <div data-tab-panel="policy" hidden>
+    <form method="post" novalidate>
+      {{ policy_form.hidden_tag() }}
+      <section class="card card--pad">
+        <h2 class="mb-1">Result policy</h2>
+        <p class="muted small">These defaults are copied into each examination when results are computed. Existing published results are never recalculated in place.</p>
+        <div class="form-grid">
+          {{ field(policy_form.pass_percent, hint="Minimum overall percentage to pass.") }}
+          {{ field(policy_form.pass_subject_percent, hint="Minimum percentage in each subject.") }}
+          {{ field(policy_form.max_failures, hint="How many subject failures are still allowed.") }}
+          {{ field(policy_form.absent_policy, hint="How an absent subject counts towards the total.") }}
+        </div>
+        <div class="form-actions">{{ policy_form.save_policy(class_="btn btn--primary") }}</div>
+      </section>
+    </form>
+  </div>
+
+  <div data-tab-panel="years" hidden>
+    <div class="grid grid--sidebar">
+      <section class="card">
+        <div class="card__head"><h2>Academic years</h2></div>
+        <div class="table-wrap">
+          <table class="table table--stack">
+            <thead><tr><th>Year</th><th>Dates</th><th>Status</th><th class="num"></th></tr></thead>
+            <tbody>
+              {% for item in sessions %}
+                <tr>
+                  <td data-label="Year"><span class="row-title">{{ item.name }}</span></td>
+                  <td data-label="Dates" class="small">{{ item.start_date|d }} – {{ item.end_date|d }}</td>
+                  <td data-label="Status">
+                    {% if item.is_current %}<span class="badge badge--success">Current</span>{% else %}<span class="badge">Past / future</span>{% endif %}
+                    {% if not item.is_active %}<span class="badge badge--neutral">Inactive</span>{% endif %}
+                  </td>
+                  <td data-label="" class="num">
+                    {% if not item.is_current %}
+                      <form class="inline-form" method="post" action="{{ url_for('admin.set_current_session', session_id=item.id) }}"
+                            data-confirm="Make {{ item.name }} the current academic year?">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        <button class="btn btn--ghost btn--sm" type="submit">Make current</button>
+                      </form>
+                    {% endif %}
+                  </td>
+                </tr>
+              {% else %}
+                <tr><td colspan="4" class="muted">No academic years yet.</td></tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <section class="card card--pad">
+        <h2 class="mb-1">New academic year</h2>
+        <p class="muted small">Working days are created automatically. Sections and timetable are built per year.</p>
+        <form method="post" action="{{ url_for('admin.create_session') }}" novalidate>
+          {{ session_form.hidden_tag() }}
+          <div class="stack">
+            {{ field(session_form.name, placeholder="2027-28") }}
+            {{ field(session_form.start_date) }}
+            {{ field(session_form.end_date) }}
+            {{ field(session_form.is_current) }}
+            <button class="btn btn--primary btn--block" type="submit">Create academic year</button>
+          </div>
+        </form>
+      </section>
+    </div>
+  </div>
+
+  <div data-tab-panel="grading" hidden>
+    <div class="grid grid--sidebar">
+      <section class="card">
+        <div class="card__head"><h2>Grading scales</h2></div>
+        <div class="table-wrap">
+          <table class="table table--stack">
+            <thead><tr><th>Scale</th><th>Rules</th><th>Status</th><th class="num"></th></tr></thead>
+            <tbody>
+              {% for scale in scales %}
+                <tr>
+                  <td data-label="Scale"><span class="row-title">{{ scale.name }}</span><span class="sub">{{ scale.rules|length }} grade bands</span></td>
+                  <td data-label="Rules" class="num">{{ scale.rules|length }}</td>
+                  <td data-label="Status">{% if scale.is_default %}<span class="badge badge--success">Default</span>{% endif %}</td>
+                  <td data-label="" class="num"><a class="btn btn--quiet btn--sm" href="{{ url_for('admin_academics.grading') }}">Edit rules</a></td>
+                </tr>
+              {% else %}
+                <tr><td colspan="4" class="muted">No grading scales configured.</td></tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <section class="card card--pad">
+        <h2 class="mb-1">Reference data</h2>
+        <p class="muted small">Checks that the default examination types (FA1–Final) and the default grading scale exist. Nothing is overwritten.</p>
+        <form method="post" action="{{ url_for('admin.seed_reference') }}">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <button class="btn btn--ghost btn--block" type="submit">Verify defaults</button>
+        </form>
+      </section>
+    </div>
+  </div>
+</div>
+{% endblock %}

@@ -1,0 +1,72 @@
+{% extends "layouts/app.html" %}
+{% from "macros/ui.html" import page_head, field, status_badge, empty %}
+{% from "macros/icons.html" import icon %}
+
+{% block title %}Homework · {{ school.name }}{% endblock %}
+
+{% block content %}
+{{ page_head("Homework", "Assignments you have published this year. Open one to review submissions and give feedback.") }}
+
+<div class="grid grid--sidebar">
+  <section class="card card--flush">
+    <div class="card__head">
+      <div><h2>Published assignments</h2><div class="sub">{{ rows|length }} assignment{{ "" if rows|length == 1 else "s" }} this year</div></div>
+    </div>
+    {% if rows %}
+      <div class="table-wrap">
+        <table class="table table--stack">
+          <thead><tr><th>Assignment</th><th>Section</th><th>Assigned</th><th>Due</th><th class="num">Submitted</th><th>Status</th><th class="num"></th></tr></thead>
+          <tbody>
+            {% for item in rows %}
+              <tr>
+                <td data-label="Assignment">
+                  <a class="row-title" href="{{ url_for('teacher.homework_detail', homework_id=item.id) }}">{{ item.title }}</a>
+                  <span class="sub">{{ item.subject.name if item.subject else "—" }}{% if item.attachment %} · attachment{% endif %}</span>
+                </td>
+                <td data-label="Section">{{ item.section.label if item.section else "—" }}</td>
+                <td data-label="Assigned" class="small">{{ item.assigned_on|d }}</td>
+                <td data-label="Due" class="small">
+                  {% if item.due_at %}
+                    {{ item.due_at|dt }}
+                    {% if item.is_overdue %}<span class="sub text-danger">Overdue</span>{% endif %}
+                  {% else %}—{% endif %}
+                </td>
+                <td data-label="Submitted" class="num">{{ item.submissions|length }}</td>
+                <td data-label="Status">{{ status_badge(item.status) }}</td>
+                <td data-label="" class="num"><a class="btn btn--quiet btn--sm" href="{{ url_for('teacher.homework_detail', homework_id=item.id) }}">Open</a></td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    {% else %}
+      {{ empty("No homework published", "Use the form alongside to publish your first assignment for a class you teach.", "file-text") }}
+    {% endif %}
+  </section>
+
+  <section class="card card--pad">
+    <h2 class="mb-1">Publish homework</h2>
+    {% if form %}
+      <p class="muted small">Students and guardians see the assignment immediately after publishing.</p>
+      <form method="post" enctype="multipart/form-data" novalidate>
+        {{ form.hidden_tag() }}
+        <div class="stack">
+          {{ field(form.section_id) }}
+          {{ field(form.subject_id) }}
+          {{ field(form.title, placeholder="e.g. Chapter 4 exercises") }}
+          {{ field(form.description) }}
+          <div class="form-grid">
+            {{ field(form.assigned_on) }}
+            {{ field(form.due_at) }}
+          </div>
+          {{ field(form.max_marks, hint="Leave blank if the assignment is not graded.") }}
+          {{ field(form.attachment, hint="Optional worksheet or reference PDF.") }}
+          <button class="btn btn--primary btn--block" type="submit">{{ icon("plus", 16) }} Publish homework</button>
+        </div>
+      </form>
+    {% else %}
+      <div class="notice">No academic year is active, so homework cannot be published right now.</div>
+    {% endif %}
+  </section>
+</div>
+{% endblock %}

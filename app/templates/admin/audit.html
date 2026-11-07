@@ -1,0 +1,59 @@
+{% extends "layouts/app.html" %}
+{% from "macros/ui.html" import page_head, pagination, empty %}
+{% from "macros/icons.html" import icon %}
+
+{% block title %}Audit log · {{ school.name }}{% endblock %}
+
+{% block content %}
+{{ page_head("Audit log", "Every sensitive change is recorded with the actor, the before and after values, and the request id.") }}
+
+<form class="filter-bar mb-2" method="get">
+  <div class="field">
+    <label for="action">Action contains</label>
+    <input class="input" id="action" name="action" value="{{ action }}" placeholder="e.g. result">
+  </div>
+  <div class="field">
+    <label for="entity">Entity</label>
+    <select class="select" id="entity" name="entity">
+      <option value="">All entities</option>
+      {% for value in entities %}
+        <option value="{{ value }}" {{ 'selected' if entity == value }}>{{ value }}</option>
+      {% endfor %}
+    </select>
+  </div>
+  <div class="field">
+    <label for="actor">Actor</label>
+    <input class="input" id="actor" name="actor" value="{{ actor }}" placeholder="Username or name">
+  </div>
+  <button class="btn btn--ghost" type="submit">Filter</button>
+  <a class="btn btn--quiet" href="{{ url_for('admin.audit') }}">Clear</a>
+</form>
+
+<section class="card card--flush">
+  {% if page.items %}
+    <div class="table-wrap">
+      <table class="table table--stack">
+        <thead>
+          <tr><th>When</th><th>Action</th><th>Entity</th><th>Actor</th><th>Summary</th></tr>
+        </thead>
+        <tbody>
+          {% for row in page.items %}
+            <tr>
+              <td data-label="When" class="small nowrap">{{ row.created_at|dt }}</td>
+              <td data-label="Action"><span class="mono small">{{ row.action }}</span></td>
+              <td data-label="Entity" class="small">{{ row.entity_type }}{% if row.entity_id %} #{{ row.entity_id }}{% endif %}</td>
+              <td data-label="Actor" class="small">
+                {% if row.actor %}{{ row.actor.full_name }}<span class="sub">{{ row.actor.username }}</span>{% else %}<span class="muted">System</span>{% endif %}
+              </td>
+              <td data-label="Summary" class="small">{{ row.summary or "—" }}</td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    <div class="card__foot">{{ pagination(page) }}</div>
+  {% else %}
+    {{ empty("No audit entries match", "Try clearing the filters. Entries appear as soon as staff make changes.", "shield") }}
+  {% endif %}
+</section>
+{% endblock %}

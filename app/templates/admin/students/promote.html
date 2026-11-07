@@ -1,0 +1,80 @@
+{% extends "layouts/app.html" %}
+{% from "macros/ui.html" import field, page_head, empty %}
+{% from "macros/icons.html" import icon %}
+
+{% block title %}Promote students · {{ school.name }}{% endblock %}
+
+{% block content %}
+<div class="breadcrumb">
+  <a href="{{ url_for('admin_students.index') }}">Students</a>
+  <span>Promote</span>
+</div>
+{{ page_head("Promote students", "Move the active roll from one academic year to the next. Always preview before committing.") }}
+
+<div class="grid grid--sidebar">
+  <section class="card card--pad">
+    <h2 class="mb-2">1. Choose the years</h2>
+    <form method="post" novalidate>
+      {{ form.hidden_tag() }}
+      <div class="form-grid">
+        {{ field(form.from_session_id) }}
+        {{ field(form.to_session_id) }}
+      </div>
+      <div class="form-actions">
+        <button class="btn btn--primary" type="submit" name="action" value="preview">{{ icon("search", 16) }} Preview promotion</button>
+      </div>
+    </form>
+
+    {% if preview is not none %}
+      <hr>
+      <h2 class="mb-1">2. Review</h2>
+      <p class="muted small">
+        {{ preview|length }} students in scope ·
+        {{ preview|selectattr("graduating")|list|length }} finishing final year ·
+        {{ preview|selectattr("already")|list|length }} already enrolled ·
+        {{ preview|rejectattr("to_section")|rejectattr("graduating")|list|length }} without a target section.
+      </p>
+      <div class="table-wrap">
+        <table class="table table--compact table--stack">
+          <thead><tr><th>Student</th><th>From</th><th>To</th><th>Note</th></tr></thead>
+          <tbody>
+            {% for row in preview %}
+              <tr>
+                <td data-label="Student">{{ row.student.full_name }}<span class="sub">{{ row.student.admission_no }}</span></td>
+                <td data-label="From">{{ row.from_section.label if row.from_section else "—" }}</td>
+                <td data-label="To">
+                  {% if row.to_section %}{{ row.to_section.label }}
+                  {% elif row.graduating %}<span class="badge badge--info">Alumni</span>
+                  {% else %}<span class="badge badge--danger">No section</span>{% endif %}
+                </td>
+                <td data-label="Note" class="small muted">{{ row.note or "Ready" }}</td>
+              </tr>
+            {% else %}
+              <tr><td colspan="4" class="muted">There are no active enrolments in the source year.</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+
+      <form method="post" class="mt-2" data-confirm="Commit the promotion? This creates new enrolments and cannot be undone automatically.">
+        {{ form.hidden_tag() }}
+        <input type="hidden" name="from_session_id" value="{{ form.from_session_id.data }}">
+        <input type="hidden" name="to_session_id" value="{{ form.to_session_id.data }}">
+        <label class="check mb-2">{{ form.confirm() }} <span>{{ form.confirm.label.text }}</span></label>
+        <button class="btn btn--accent" type="submit">Commit promotion</button>
+      </form>
+    {% endif %}
+  </section>
+
+  <section class="card card--pad">
+    <h2 class="mb-1">How this works</h2>
+    <ul class="list small">
+      <li class="list__item"><span class="list__body">Each active student moves to the next class level, keeping their section name where possible.</span></li>
+      <li class="list__item"><span class="list__body">Students in the final year are marked alumni and their enrolment is closed.</span></li>
+      <li class="list__item"><span class="list__body">Existing enrolments in the target year are skipped, never duplicated.</span></li>
+      <li class="list__item"><span class="list__body">The previous year stays intact for results, fees and attendance history.</span></li>
+    </ul>
+    <div class="notice mt-2">If a class has no section in the target year, those students are left untouched and listed as “No section”. Create the sections first, then run the promotion again.</div>
+  </section>
+</div>
+{% endblock %}
